@@ -1,0 +1,7 @@
+{
+    "influx_token": "GQ_DxDjB2OBHejt5d0NZ-U8feO6Ll6KeyMiU4SO-3bdijNGyrL2RBmaANgRwoM-3xE_Epo_3ppwzOouL8nFyZw==",
+    "influx_org": "synology",
+    "influx_url": "http://192.168.40.11:8086",
+    "influx_bucket": "catBot"
+  }
+  
