@@ -1,0 +1,888 @@
+openapi: 3.0.0
+info:
+  title: CatBot V3 API
+  description: API zur Abfrage von Sensordaten, Steuerung von Geräten und Fütterungsmanagement
+  version: "2.0.0"
+servers:
+  - url: /
+
+paths:
+  # ========== SENSOR/ACTOR ENDPOINTS ==========
+  /distance:
+    get:
+      summary: Get Distance
+      description: Liefert die gemessene Entfernung als Füllstand in Prozent
+      tags:
+        - Sensor/Actor
+      responses:
+        '200':
+          description: Entfernung erfolgreich abgerufen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  distance:
+                    type: number
+                    description: Füllstand in Prozent (0-100)
+              examples:
+                example:
+                  value:
+                    distance: 75.3
+        '500':
+          description: Fehler bei der Messung
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              examples:
+                example:
+                  value:
+                    error: "Distance Sensor nicht verfügbar"
+
+  /motor:
+    get:
+      summary: Get Motor Status
+      description: Gibt den Status des Motors zurück (0=aus, 1=an)
+      tags:
+        - Sensor/Actor
+      responses:
+        '200':
+          description: Status erfolgreich abgerufen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: integer
+                    enum: [0, 1]
+                    description: Motor Status (0=aus, 1=an)
+              examples:
+                example:
+                  value:
+                    status: 0
+        '500':
+          description: Motor Controller nicht verfügbar
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+    post:
+      summary: Control Motor
+      description: Steuert den Motor (rotate oder stop)
+      tags:
+        - Sensor/Actor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                action:
+                  type: string
+                  enum: [rotate, stop]
+                  description: Aktion für den Motor
+              required:
+                - action
+      responses:
+        '201':
+          description: Aktion erfolgreich durchgeführt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+              examples:
+                rotate:
+                  value:
+                    status: "Motor wurde gestartet"
+                stop:
+                  value:
+                    status: "Motor wurde gestoppt"
+        '400':
+          description: Ungültige Aktion
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              examples:
+                example:
+                  value:
+                    error: "Ungültige Aktion"
+        '500':
+          description: Motor Controller nicht verfügbar
+
+  /weight:
+    get:
+      summary: Get Weight
+      description: Liefert das gemessene Gewicht in Gramm
+      tags:
+        - Sensor/Actor
+      responses:
+        '200':
+          description: Gewicht erfolgreich abgerufen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  weight:
+                    type: number
+                    format: float
+                    description: Gewicht in Gramm
+              examples:
+                example:
+                  value:
+                    weight: 342.75
+        '500':
+          description: Fehler bei der Messung
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              examples:
+                example:
+                  value:
+                    error: "Gewichtssensor nicht verfügbar"
+
+  /weight/tare:
+    post:
+      summary: Tare Weight Sensor
+      description: Tarierung des Gewichtssensors (Nullstellung bei leerer Waage)
+      tags:
+        - Sensor/Actor
+      responses:
+        '201':
+          description: Tarierung erfolgreich abgeschlossen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  offset:
+                    type: number
+                    description: Neuer Offset-Wert
+                  state:
+                    type: string
+                    description: Aktueller Sensor-Zustand
+              examples:
+                example:
+                  value:
+                    status: "Tare abgeschlossen"
+                    offset: 12345.67
+                    state: "SensorState.TARED"
+        '500':
+          description: Tarierung fehlgeschlagen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+  /weight/calibrate:
+    post:
+      summary: Calibrate Weight Sensor
+      description: Kalibrierung des Gewichtssensors mit bekanntem Gewicht
+      tags:
+        - Sensor/Actor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                known_weight:
+                  type: number
+                  format: float
+                  description: Bekanntes Gewicht in Gramm für Kalibrierung
+                  minimum: 1
+              required:
+                - known_weight
+            examples:
+              example:
+                value:
+                  known_weight: 141.0
+      responses:
+        '201':
+          description: Kalibrierung erfolgreich abgeschlossen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  known_weight:
+                    type: number
+              examples:
+                example:
+                  value:
+                    status: "Kalibrierung abgeschlossen"
+                    known_weight: 141.0
+        '400':
+          description: Fehlerhafte Anfrage
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              examples:
+                example:
+                  value:
+                    error: "Kein bekanntes Gewicht angegeben"
+        '500':
+          description: Kalibrierung fehlgeschlagen
+
+  # ========== FEEDING PLAN ENDPOINTS ==========
+  /feeding_plan:
+    get:
+      summary: Get All Feeding Plans
+      description: Holt alle gespeicherten Fütterungspläne
+      tags:
+        - Feeding
+      responses:
+        '200':
+          description: Fütterungspläne erfolgreich abgerufen
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    planName:
+                      type: string
+                    active:
+                      type: boolean
+                    selectedDays:
+                      type: array
+                      items:
+                        type: string
+                    feedingSchedule:
+                      type: object
+                      additionalProperties:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            time:
+                              type: string
+                              format: time
+                            weight:
+                              type: number
+                            status:
+                              type: boolean
+                              nullable: true
+              examples:
+                example:
+                  value:
+                    - planName: "Tägliche Fütterung"
+                      active: true
+                      selectedDays: ["Montag", "Dienstag", "Mittwoch"]
+                      feedingSchedule:
+                        Montag:
+                          - time: "08:00"
+                            weight: 50
+                            status: true
+                          - time: "18:00"
+                            weight: 50
+                            status: null
+        '500':
+          description: Fehler beim Laden der Fütterungspläne
+    post:
+      summary: Save Feeding Plan
+      description: Speichert einen neuen Fütterungsplan
+      tags:
+        - Feeding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                planName:
+                  type: string
+                weightMode:
+                  type: string
+                  enum: [manual, automatic]
+                selectedDays:
+                  type: array
+                  items:
+                    type: string
+                feedingSchedule:
+                  type: object
+                  additionalProperties:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        time:
+                          type: string
+                          format: time
+                        weight:
+                          type: number
+                          minimum: 1
+              required:
+                - planName
+                - selectedDays
+                - feedingSchedule
+      responses:
+        '201':
+          description: Fütterungsplan erfolgreich gespeichert
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          description: Ungültige Plandaten
+        '500':
+          description: Fehler beim Speichern
+
+  /feeding_plan/{plan_name}:
+    delete:
+      summary: Delete Feeding Plan
+      description: Löscht einen Fütterungsplan
+      tags:
+        - Feeding
+      parameters:
+        - name: plan_name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name des zu löschenden Plans
+      responses:
+        '200':
+          description: Fütterungsplan erfolgreich gelöscht
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '500':
+          description: Fehler beim Löschen
+
+  /feeding_plan/load:
+    post:
+      summary: Load/Activate Feeding Plan
+      description: Aktiviert einen spezifischen Fütterungsplan
+      tags:
+        - Feeding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                planName:
+                  type: string
+              required:
+                - planName
+      responses:
+        '200':
+          description: Fütterungsplan erfolgreich aktiviert
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          description: Kein Planname angegeben
+        '500':
+          description: Fehler beim Laden
+
+  /update_feeding_status:
+    post:
+      summary: Update Feeding Status
+      description: Startet manuelle Überprüfung und Ausführung der Fütterungspläne
+      tags:
+        - Feeding
+      responses:
+        '200':
+          description: Fütterungsstatus-Update gestartet
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '500':
+          description: Fehler beim Update
+
+  # ========== SYSTEM ENDPOINTS ==========
+  /system/cpu:
+    get:
+      summary: Get CPU Info
+      description: Liefert die CPU-Auslastung in Prozent
+      tags:
+        - System
+      responses:
+        '200':
+          description: CPU-Auslastung erfolgreich abgerufen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cpu_percent:
+                    type: number
+                    format: float
+                    nullable: true
+                    description: CPU-Auslastung in Prozent
+              examples:
+                example:
+                  value:
+                    cpu_percent: 35.7
+
+  /system/temperature:
+    get:
+      summary: Get CPU Temperature
+      description: Liefert die CPU-Temperatur in Grad Celsius
+      tags:
+        - System
+      responses:
+        '200':
+          description: CPU-Temperatur erfolgreich abgerufen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  temperature:
+                    type: number
+                    format: float
+                    nullable: true
+                    description: CPU-Temperatur in Grad Celsius
+              examples:
+                example:
+                  value:
+                    temperature: 65.5
+
+  /system/ram:
+    get:
+      summary: Get RAM Info
+      description: Liefert die RAM-Informationen
+      tags:
+        - System
+      responses:
+        '200':
+          description: RAM-Informationen erfolgreich abgerufen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: number
+                    format: float
+                    description: Gesamter RAM in MB
+                  available:
+                    type: number
+                    format: float
+                    description: Verfügbarer RAM in MB
+                  percent:
+                    type: number
+                    format: float
+                    description: Verwendeter RAM in Prozent
+                  used:
+                    type: number
+                    format: float
+                    description: Benutzter RAM in MB
+                  free:
+                    type: number
+                    format: float
+                    description: Freier RAM in MB
+                nullable: true
+              examples:
+                example:
+                  value:
+                    total: 8192.0
+                    available: 4096.0
+                    percent: 50.0
+                    used: 4096.0
+                    free: 2048.0
+
+  /system/disk:
+    get:
+      summary: Get Disk Info
+      description: Liefert die Festplatteninformationen
+      tags:
+        - System
+      responses:
+        '200':
+          description: Festplatteninformationen erfolgreich abgerufen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: number
+                    format: float
+                    description: Gesamter Speicher in GB
+                  used:
+                    type: number
+                    format: float
+                    description: Benutzter Speicher in GB
+                  free:
+                    type: number
+                    format: float
+                    description: Freier Speicher in GB
+                  percent:
+                    type: number
+                    format: float
+                    description: Verwendeter Speicher in Prozent
+                  path:
+                    type: string
+                    description: Pfad des gemessenen Laufwerks
+                nullable: true
+              examples:
+                example:
+                  value:
+                    total: 32.0
+                    used: 16.0
+                    free: 15.5
+                    percent: 50.0
+                    path: "/"
+
+  /system/network:
+    get:
+      summary: Get Network Info
+      description: Liefert die Netzwerkinformationen
+      tags:
+        - System
+      responses:
+        '200':
+          description: Netzwerkinformationen erfolgreich abgerufen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  current_ip:
+                    type: string
+                    nullable: true
+                    description: Aktuelle IP-Adresse
+                  eth0:
+                    type: object
+                    nullable: true
+                    properties:
+                      ip_address:
+                        type: string
+                        description: IP-Adresse der Ethernet-Schnittstelle
+                      scope:
+                        type: string
+                        description: Scope der IP-Adresse
+                  wlan0:
+                    type: object
+                    nullable: true
+                    properties:
+                      ip_address:
+                        type: string
+                        description: IP-Adresse der WLAN-Schnittstelle
+                      scope:
+                        type: string
+                        description: Scope der IP-Adresse
+                  wifi_ssid:
+                    type: string
+                    nullable: true
+                    description: Verbundenes WLAN-SSID (falls zutreffend)
+              examples:
+                example:
+                  value:
+                    current_ip: "192.168.1.100"
+                    eth0:
+                      ip_address: "192.168.1.101"
+                      scope: "global"
+                    wlan0:
+                      ip_address: "192.168.1.102"
+                      scope: "global"
+                    wifi_ssid: "MyWiFiNetwork"
+
+  /system/scan_wifi:
+    get:
+      summary: Scan WiFi Networks
+      description: Scannt nach verfügbaren WLAN-Netzwerken
+      tags:
+        - Network
+      responses:
+        '200':
+          description: WLAN-Netzwerke erfolgreich gescannt
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    ssid:
+                      type: string
+                      description: SSID des Netzwerks
+                    signal:
+                      type: integer
+                      description: Signalstärke in dBm
+                    quality:
+                      type: string
+                      description: Qualität des Netzwerks
+                    encrypted:
+                      type: boolean
+                      description: Ob das Netzwerk verschlüsselt ist
+                    encryption_type:
+                      type: string
+                      description: Art der Verschlüsselung
+                    frequency:
+                      type: number
+                      description: Frequenz in GHz
+              examples:
+                example:
+                  value:
+                    - ssid: "MyWiFiNetwork"
+                      signal: -45
+                      quality: "70/100"
+                      encrypted: true
+                      encryption_type: "WPA2"
+                      frequency: 2.4
+                    - ssid: "NeighborWiFi"
+                      signal: -65
+                      quality: "45/100"
+                      encrypted: false
+                      encryption_type: "Open"
+                      frequency: 5.0
+
+  /system/connect_wifi:
+    post:
+      summary: Connect to WiFi
+      description: Verbindet sich mit einem WLAN-Netzwerk
+      tags:
+        - Network
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ssid:
+                  type: string
+                  description: SSID des Netzwerks
+                password:
+                  type: string
+                  description: Passwort des Netzwerks (optional für offene Netzwerke)
+                interface:
+                  type: string
+                  default: "wlan0"
+                  description: WLAN-Interface
+              required:
+                - ssid
+      responses:
+        '200':
+          description: Erfolgreich mit WLAN verbunden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+        '500':
+          description: WLAN-Verbindung fehlgeschlagen
+
+  /system/configure_lan:
+    post:
+      summary: Configure LAN
+      description: Konfiguriert die LAN-Einstellungen
+      tags:
+        - Network
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                use_dhcp:
+                  type: boolean
+                  description: Ob DHCP verwendet werden soll
+                ip:
+                  type: string
+                  description: Statische IP-Adresse (erforderlich wenn use_dhcp=false)
+                netmask:
+                  type: string
+                  description: Netzmaske (erforderlich wenn use_dhcp=false)
+                gateway:
+                  type: string
+                  description: Gateway (erforderlich wenn use_dhcp=false)
+                dns:
+                  type: string
+                  description: DNS-Server (optional)
+                interface:
+                  type: string
+                  default: "eth0"
+                  description: LAN-Interface
+              required:
+                - use_dhcp
+      responses:
+        '200':
+          description: LAN erfolgreich konfiguriert
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+        '500':
+          description: LAN-Konfiguration fehlgeschlagen
+
+  # ========== INFLUXDB ENDPOINTS ==========
+  /influx/{measurement}:
+    get:
+      summary: Query InfluxDB Data
+      description: Fragt historische Daten aus InfluxDB ab
+      tags:
+        - Data
+      parameters:
+        - name: measurement
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name der Messung (z.B. distance, weight, cpu_percent)
+        - name: start
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Start-Zeit (z.B. -1h, -1d, 2023-01-01T00:00:00Z)
+        - name: end
+          in: query
+          required: true
+          schema:
+            type: string
+          description: End-Zeit (z.B. now(), 2023-01-01T23:59:59Z)
+      responses:
+        '200':
+          description: Daten erfolgreich abgerufen
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    time:
+                      type: string
+                      format: date-time
+                    measurement:
+                      type: string
+                    field:
+                      type: string
+                    value:
+                      type: number
+        '400':
+          description: Start und End-Zeit sind erforderlich
+
+  # ========== HEALTH CHECK ==========
+  /health:
+    get:
+      summary: Health Check
+      description: Überprüft den Gesundheitszustand des Systems
+      tags:
+        - Monitoring
+      responses:
+        '200':
+          description: System-Status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded, unhealthy]
+                  timestamp:
+                    type: string
+                    format: date-time
+                  sensors:
+                    type: object
+                    properties:
+                      distance_sensor:
+                        type: boolean
+                      weight_sensor:
+                        type: boolean
+                      motor_controller:
+                        type: boolean
+                  resources:
+                    type: object
+                    properties:
+                      gpio_initialized:
+                        type: boolean
+                      registered_resources:
+                        type: array
+                        items:
+                          type: string
+                      cleanup_callbacks_count:
+                        type: integer
+                      total_resources:
+                        type: integer
+              examples:
+                healthy:
+                  value:
+                    status: "healthy"
+                    timestamp: "2023-12-07T10:30:00Z"
+                    sensors:
+                      distance_sensor: true
+                      weight_sensor: true
+                      motor_controller: true
+                    resources:
+                      gpio_initialized: true
+                      registered_resources: ["distance_sensor", "gewichtssensor", "motor_controller"]
+                      cleanup_callbacks_count: 0
+                      total_resources: 3
+
+tags:
+  - name: Sensor/Actor
+    description: Sensoren und Aktoren (Entfernung, Gewicht, Motor)
+  - name: Feeding
+    description: Fütterungsplan-Management
+  - name: System
+    description: System-Informationen (CPU, RAM, Disk)
+  - name: Network
+    description: Netzwerk-Konfiguration und -Information
+  - name: Data
+    description: Historische Daten aus InfluxDB
+  - name: Monitoring
+    description: System-Überwachung und Health Checks

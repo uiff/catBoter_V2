@@ -1,0 +1,8 @@
+i2C Aktivieren (Distanzsensor)
+sudo apt-get update
+sudo apt-get install libopenblas-dev
+
+
+env Virtuelle umgebung öffnen:
+source ~/CatBoterv3/backend/envPython/bin/activate
+

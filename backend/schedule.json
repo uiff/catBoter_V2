@@ -1,0 +1,1 @@
+{"schedule": [{"time": "23:10", "weight": 50, "days": [0, 1, 2, 3, 4, 5, 6]}, {"time": "13:15", "weight": 30, "days": [0, 1, 2, 3, 4, 5, 6]}, {"time": "18:00", "weight": 20, "days": [2, 4, 6]}], "max_daily_weight": 100}
