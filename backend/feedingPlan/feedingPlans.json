@@ -1,177 +1,6 @@
 [
   {
-    "planName": "Ferien",
-    "selectedDays": [
-      "Montag",
-      "Dienstag",
-      "Mittwoch",
-      "Donnerstag",
-      "Freitag",
-      "Samstag",
-      "Sonntag"
-    ],
-    "feedingSchedule": {
-      "Montag": [
-        {
-          "time": "12:00",
-          "weight": 12.5,
-          "status": null
-        },
-        {
-          "time": "23:00",
-          "weight": 12.5,
-          "status": null
-        },
-        {
-          "time": "23:00",
-          "weight": 12.5,
-          "status": null
-        },
-        {
-          "time": "23:00",
-          "weight": 12.5,
-          "status": null
-        }
-      ],
-      "Dienstag": [
-        {
-          "time": "12:00",
-          "weight": 12.5,
-          "status": null
-        },
-        {
-          "time": "23:00",
-          "weight": 12.5,
-          "status": null
-        },
-        {
-          "time": "23:00",
-          "weight": 12.5,
-          "status": null
-        },
-        {
-          "time": "23:00",
-          "weight": 12.5,
-          "status": null
-        }
-      ],
-      "Mittwoch": [
-        {
-          "time": "12:00",
-          "weight": 12.5,
-          "status": null
-        },
-        {
-          "time": "23:00",
-          "weight": 12.5,
-          "status": null
-        },
-        {
-          "time": "23:00",
-          "weight": 12.5,
-          "status": null
-        },
-        {
-          "time": "23:00",
-          "weight": 12.5,
-          "status": null
-        }
-      ],
-      "Donnerstag": [
-        {
-          "time": "12:00",
-          "weight": 12.5,
-          "status": null
-        },
-        {
-          "time": "23:00",
-          "weight": 12.5,
-          "status": null
-        },
-        {
-          "time": "23:00",
-          "weight": 12.5,
-          "status": null
-        },
-        {
-          "time": "23:00",
-          "weight": 12.5,
-          "status": null
-        }
-      ],
-      "Freitag": [
-        {
-          "time": "12:00",
-          "weight": 12.5,
-          "status": null
-        },
-        {
-          "time": "23:00",
-          "weight": 12.5,
-          "status": null
-        },
-        {
-          "time": "23:00",
-          "weight": 12.5,
-          "status": null
-        },
-        {
-          "time": "23:00",
-          "weight": 12.5,
-          "status": null
-        }
-      ],
-      "Samstag": [
-        {
-          "time": "12:00",
-          "weight": 12.5,
-          "status": null
-        },
-        {
-          "time": "23:00",
-          "weight": 12.5,
-          "status": null
-        },
-        {
-          "time": "23:00",
-          "weight": 12.5,
-          "status": null
-        },
-        {
-          "time": "23:00",
-          "weight": 12.5,
-          "status": null
-        }
-      ],
-      "Sonntag": [
-        {
-          "time": "12:00",
-          "weight": 12.5,
-          "status": null
-        },
-        {
-          "time": "23:00",
-          "weight": 12.5,
-          "status": null
-        },
-        {
-          "time": "23:00",
-          "weight": 12.5,
-          "status": null
-        },
-        {
-          "time": "23:00",
-          "weight": 12.5,
-          "status": null
-        }
-      ]
-    },
-    "weightMode": "automatic",
-    "active": false,
-    "maxWeight": "50"
-  },
-  {
-    "planName": "Ferien-2",
+    "planName": "Ueli",
     "selectedDays": [
       "Montag",
       "Dienstag",
@@ -185,209 +14,285 @@
       "Montag": [
         {
           "time": "07:00",
-          "weight": 16.666666666666668,
-          "status": true,
-          "last_attempt": "2025-12-15T07:02:19.927225",
-          "message": "23.5g gefüttert (Soll: 16.67g)",
-          "fed_amount": 0.0
+          "weight": 15
         },
         {
-          "time": "12:00",
-          "weight": 16.666666666666668,
-          "status": true,
-          "last_attempt": "2025-12-15T12:02:07.823801",
-          "message": "16.9g gefüttert (Soll: 16.67g)",
-          "fed_amount": 0.0
+          "time": "11:00",
+          "weight": 15
+        },
+        {
+          "time": "15:00",
+          "weight": 15
         },
         {
           "time": "19:00",
-          "weight": 16.666666666666668,
-          "status": true,
-          "last_attempt": "2025-12-15T19:00:56.908023",
-          "message": "19.8g gefüttert (Soll: 16.67g)",
-          "fed_amount": 0.0
+          "weight": 15
         }
       ],
       "Dienstag": [
         {
           "time": "07:00",
-          "weight": 16.666666666666668,
-          "status": true,
-          "last_attempt": "2025-12-16T07:01:22.312869",
-          "message": "20.8g gefüttert (Soll: 16.67g)",
-          "fed_amount": 0.0
+          "weight": 15
         },
         {
-          "time": "12:00",
-          "weight": 16.666666666666668,
-          "status": true,
-          "last_attempt": "2025-12-16T12:02:45.215793",
-          "message": "19.6g gefüttert (Soll: 16.67g)",
-          "fed_amount": 0.0
+          "time": "11:00",
+          "weight": 15
+        },
+        {
+          "time": "15:00",
+          "weight": 15
         },
         {
           "time": "19:00",
-          "weight": 16.666666666666668,
-          "status": true,
-          "last_attempt": "2025-12-16T19:01:30.803368",
-          "message": "17.9g gefüttert (Soll: 16.67g)",
-          "fed_amount": 0.0
+          "weight": 15
         }
       ],
       "Mittwoch": [
         {
           "time": "07:00",
-          "weight": 16.666666666666668,
-          "status": true,
-          "last_attempt": "2025-12-17T07:03:13.111901",
-          "message": "22.2g gefüttert (Soll: 16.67g)",
-          "fed_amount": 0.0
+          "weight": 15
         },
         {
-          "time": "12:00",
-          "weight": 16.666666666666668,
-          "status": true,
-          "last_attempt": "2025-12-17T12:01:26.081918",
-          "message": "17.4g gefüttert (Soll: 16.67g)",
-          "fed_amount": 0.0
+          "time": "11:00",
+          "weight": 15
+        },
+        {
+          "time": "15:00",
+          "weight": 15
         },
         {
           "time": "19:00",
-          "weight": 16.666666666666668,
-          "status": true,
-          "last_attempt": "2025-12-17T19:01:50.124523",
-          "message": "22.8g gefüttert (Soll: 16.67g)",
-          "fed_amount": 0.0
+          "weight": 15
         }
       ],
       "Donnerstag": [
         {
           "time": "07:00",
-          "weight": 16.666666666666668,
-          "status": true,
-          "last_attempt": "2025-12-18T07:01:51.161965",
-          "message": "22.7g gefüttert (Soll: 16.67g)",
-          "fed_amount": 0.0
+          "weight": 15
         },
         {
-          "time": "12:00",
-          "weight": 16.666666666666668,
-          "status": true,
-          "last_attempt": "2025-12-18T12:03:17.546303",
-          "message": "16.9g gefüttert (Soll: 16.67g)",
-          "fed_amount": 0.0
+          "time": "11:00",
+          "weight": 15
+        },
+        {
+          "time": "15:00",
+          "weight": 15
         },
         {
           "time": "19:00",
-          "weight": 16.666666666666668,
-          "status": true,
-          "last_attempt": "2025-12-18T19:01:13.632557",
-          "message": "20.8g gefüttert (Soll: 16.67g)",
-          "fed_amount": 0.0
+          "weight": 15
         }
       ],
       "Freitag": [
         {
           "time": "07:00",
-          "weight": 16.666666666666668,
+          "weight": 15,
+          "status": null
+        },
+        {
+          "time": "11:00",
+          "weight": 15,
           "status": true,
-          "last_attempt": "2025-12-19T07:02:17.507060",
-          "message": "24.8g gefüttert (Soll: 16.67g)",
+          "last_attempt": "2026-01-09T11:01:54.533894",
+          "message": "16.4g gefüttert (Soll: 15.0g)",
           "fed_amount": 0.0
         },
         {
-          "time": "12:00",
-          "weight": 16.666666666666668,
+          "time": "15:00",
+          "weight": 15,
           "status": true,
-          "last_attempt": "2025-12-19T12:01:44.427703",
-          "message": "16.9g gefüttert (Soll: 16.67g)",
+          "last_attempt": "2026-01-09T15:01:51.094317",
+          "message": "20.1g gefüttert (Soll: 15.0g)",
           "fed_amount": 0.0
         },
         {
           "time": "19:00",
-          "weight": 16.666666666666668,
-          "status": true,
-          "last_attempt": "2025-12-19T19:01:37.057756",
-          "message": "17.2g gefüttert (Soll: 16.67g)",
-          "fed_amount": 0.0
+          "weight": 15,
+          "status": null
         }
       ],
       "Samstag": [
         {
           "time": "07:00",
-          "weight": 16.666666666666668,
-          "status": true,
-          "last_attempt": "2025-12-20T07:02:23.469639",
-          "message": "17.4g gefüttert (Soll: 16.67g)",
-          "fed_amount": 0.0
+          "weight": 15
         },
         {
-          "time": "12:00",
-          "weight": 16.666666666666668,
-          "status": true,
-          "last_attempt": "2025-12-20T12:02:33.388745",
-          "message": "16.9g gefüttert (Soll: 16.67g)",
-          "fed_amount": 0.0
+          "time": "11:00",
+          "weight": 15
+        },
+        {
+          "time": "15:00",
+          "weight": 15
         },
         {
           "time": "19:00",
-          "weight": 16.666666666666668,
-          "status": true,
-          "last_attempt": "2025-12-20T19:02:07.816902",
-          "message": "17.1g gefüttert (Soll: 16.67g)",
-          "fed_amount": 0.0
+          "weight": 15
         }
       ],
       "Sonntag": [
         {
           "time": "07:00",
-          "weight": 16.666666666666668,
-          "status": true,
-          "last_attempt": "2025-12-14T07:01:11.575382",
-          "message": "16.9g gefüttert (Soll: 16.67g)",
-          "fed_amount": 0.0
+          "weight": 15
         },
         {
-          "time": "12:00",
-          "weight": 16.666666666666668,
-          "status": true,
-          "last_attempt": "2025-12-14T12:02:59.056024",
-          "message": "18.9g gefüttert (Soll: 16.67g)",
-          "fed_amount": 0.0
+          "time": "11:00",
+          "weight": 15
+        },
+        {
+          "time": "15:00",
+          "weight": 15
         },
         {
           "time": "19:00",
-          "weight": 16.666666666666668,
-          "status": true,
-          "last_attempt": "2025-12-14T19:01:26.605963",
-          "message": "17.0g gefüttert (Soll: 16.67g)",
-          "fed_amount": 0.0
-        }
-      ]
-    },
-    "weightMode": "automatic",
-    "active": true,
-    "maxWeight": "50"
-  },
-  {
-    "planName": "Gnk",
-    "selectedDays": [
-      "Mittwoch"
-    ],
-    "feedingSchedule": {
-      "Mittwoch": [
-        {
-          "time": "12:00",
-          "weight": 25
-        },
-        {
-          "time": "21:00",
-          "weight": 25
+          "weight": 15
         }
       ]
     },
     "weightMode": "daily",
-    "dailyWeight": 50,
+    "dailyWeight": 60,
+    "active": true
+  },
+  {
+    "planName": "sdf",
+    "selectedDays": [
+      "Montag",
+      "Dienstag",
+      "Mittwoch",
+      "Donnerstag",
+      "Freitag",
+      "Samstag",
+      "Sonntag"
+    ],
+    "feedingSchedule": {
+      "Montag": [
+        {
+          "time": "07:00",
+          "weight": 15
+        },
+        {
+          "time": "11:00",
+          "weight": 15
+        },
+        {
+          "time": "15:00",
+          "weight": 15
+        },
+        {
+          "time": "19:00",
+          "weight": 15
+        }
+      ],
+      "Dienstag": [
+        {
+          "time": "07:00",
+          "weight": 15
+        },
+        {
+          "time": "11:00",
+          "weight": 15
+        },
+        {
+          "time": "15:00",
+          "weight": 15
+        },
+        {
+          "time": "19:00",
+          "weight": 15
+        }
+      ],
+      "Mittwoch": [
+        {
+          "time": "07:00",
+          "weight": 15
+        },
+        {
+          "time": "11:00",
+          "weight": 15
+        },
+        {
+          "time": "15:00",
+          "weight": 15
+        },
+        {
+          "time": "19:00",
+          "weight": 15
+        }
+      ],
+      "Donnerstag": [
+        {
+          "time": "07:00",
+          "weight": 15
+        },
+        {
+          "time": "11:00",
+          "weight": 15
+        },
+        {
+          "time": "15:00",
+          "weight": 15
+        },
+        {
+          "time": "19:00",
+          "weight": 15
+        }
+      ],
+      "Freitag": [
+        {
+          "time": "07:00",
+          "weight": 15
+        },
+        {
+          "time": "11:00",
+          "weight": 15
+        },
+        {
+          "time": "15:00",
+          "weight": 15
+        },
+        {
+          "time": "19:00",
+          "weight": 15
+        }
+      ],
+      "Samstag": [
+        {
+          "time": "07:00",
+          "weight": 15
+        },
+        {
+          "time": "11:00",
+          "weight": 15
+        },
+        {
+          "time": "15:00",
+          "weight": 15
+        },
+        {
+          "time": "19:00",
+          "weight": 15
+        }
+      ],
+      "Sonntag": [
+        {
+          "time": "07:00",
+          "weight": 15
+        },
+        {
+          "time": "11:00",
+          "weight": 15
+        },
+        {
+          "time": "15:00",
+          "weight": 15
+        },
+        {
+          "time": "19:00",
+          "weight": 15
+        }
+      ]
+    },
+    "weightMode": "daily",
+    "dailyWeight": 60,
     "active": false
   }
 ]

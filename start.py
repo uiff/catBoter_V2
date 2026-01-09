@@ -9,9 +9,9 @@ def start_backend():
     return process
 
 def start_frontend():
-    frontend_dir = os.path.join(os.getcwd(), 'frontend')
-    # Start frontend
-    process = subprocess.Popen(['npm', 'start'], cwd=frontend_dir)
+    frontend_dir = os.path.join(os.getcwd(), 'frontend-new')
+    # Start frontend with dev server
+    process = subprocess.Popen(['npm', 'run', 'dev'], cwd=frontend_dir)
     return process
 
 if __name__ == "__main__":

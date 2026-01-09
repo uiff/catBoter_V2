@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: catboter_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - frontend_dist:/usr/share/nginx/html:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - catboter_network
+    restart: unless-stopped
+
+  # Backend Service (Flask)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: catboter_backend
+    environment:
+      - FLASK_ENV=production
+      - FLASK_APP=main.py
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./backend/data:/app/data
+      - ./backend/feedingPlan:/app/feedingPlan
+      - ./backend/kalibrierung.json:/app/kalibrierung.json
+      - ./backend/schedule.json:/app/schedule.json
+      # GPIO und Hardware Zugriff für Raspberry Pi
+      - /sys:/sys
+      - /dev:/dev
+    privileged: true
+    devices:
+      - /dev/gpiomem:/dev/gpiomem
+    networks:
+      - catboter_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend Service (Vite + React)
+  frontend:
+    build:
+      context: ./frontend-new
+      dockerfile: Dockerfile
+      target: build
+    container_name: catboter_frontend
+    volumes:
+      - frontend_dist:/app/dist
+    networks:
+      - catboter_network
+
+networks:
+  catboter_network:
+    driver: bridge
+
+volumes:
+  backend_data:
+  feeding_plans:
+  frontend_dist:

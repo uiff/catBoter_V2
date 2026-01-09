@@ -1,0 +1,46 @@
+2026-01-09 19:17:52,662 - INFO - Consumption Manager erfolgreich importiert
+2026-01-09 19:17:52,663 - INFO - Smart Feeding Tracker erfolgreich importiert
+2026-01-09 19:17:52,667 - INFO - Gewichtssensor-Klasse gefunden: Gewichtssensor
+2026-01-09 19:17:52,694 - INFO - Distance-Sensor-Klasse gefunden: VL53L0XSensor
+2026-01-09 19:17:52,695 - INFO - Motor-Klasse gefunden: MotorController
+2026-01-09 19:17:52,735 - INFO - feedingControl Funktionen erfolgreich importiert
+2026-01-09 19:17:52,736 - INFO - Dynamischer Import abgeschlossen
+2026-01-09 19:17:52,911 - INFO - 🔌 WebSocket initialisiert
+2026-01-09 19:17:52,911 - INFO - ✅ WebSocket-Integration aktiviert
+2026-01-09 19:17:52,912 - INFO - Starte Hintergrund-Scheduler für automatische Fütterungsprüfung (feeding_status_scheduler)
+2026-01-09 19:17:52,913 - INFO - Scheduler: Rufe aktualisiere_fütterungsstatus() auf ...
+2026-01-09 19:17:52,913 - INFO - Starte Fütterungsstatus-Update...
+2026-01-09 19:17:52,914 - INFO - HardwareManager initialisiert
+2026-01-09 19:17:52,930 - INFO - JSON-Daten erfolgreich geladen (FeedingPlan).
+2026-01-09 19:17:52,936 - INFO - Aktueller Tag: Freitag, Aktuelle Zeit: 19:17:52.935929
+2026-01-09 19:17:52,941 - INFO - Verarbeite aktiven Plan: Ueli
+2026-01-09 19:17:52,966 - INFO - Keine Fütterungen zu verarbeiten.
+2026-01-09 19:17:53,964 - INFO - [LOAD CALIBRATION] Kalibrierungsdaten geladen: Reference Unit=1933.5707090207084, Offset=902748.9189189189
+2026-01-09 19:17:53,964 - INFO - [INIT] State = SensorState.READY (Kalibrierungsdaten geladen)
+2026-01-09 19:17:53,964 - INFO - WeightSensor initialisiert
+2026-01-09 19:17:53,965 - INFO - 🔄 Tracking-Loop gestartet
+2026-01-09 19:17:53,965 - INFO - 🎯 Smart Feeding Tracker gestartet
+2026-01-09 19:17:53,977 - INFO - ✅ Smart Feeding Tracker gestartet
+2026-01-09 19:17:53,987 - INFO - 🔄 WebSocket Broadcast-Thread gestartet
+2026-01-09 19:17:53,993 - INFO - 🚀 WebSocket Background-Broadcaster gestartet
+2026-01-09 19:17:53,998 - INFO - 🚀 Starte CatBot V3 API Server mit WebSocket-Support...
+2026-01-09 19:17:54,003 - INFO - ✅ WebSocket aktiviert - Echtzeit-Updates enabled
+2026-01-09 19:17:54,009 - INFO - 💡 Für Production verwende: gunicorn --worker-class eventlet -w 1 -b 0.0.0.0:5000 main:app
+2026-01-09 19:17:54,014 - INFO - 🔧 Verwende Flask Development Server mit Threading...
+2026-01-09 19:17:54,020 - WARNING - Werkzeug appears to be used in a production deployment. Consider switching to a production web server instead.
+ * Serving Flask app 'main'
+ * Debug mode: off
+Address already in use
+Port 5000 is in use by another program. Either identify and stop that program, or start the server with a different port.
+2026-01-09 19:17:54,227 - ERROR - [DISTANCE SENSOR] Unerwarteter Fehler bei Initialisierung: [Errno 121] Remote I/O error
+2026-01-09 19:17:54,227 - INFO - DistanceSensor initialisiert
+2026-01-09 19:17:54,227 - INFO - MotorController initialisiert
+2026-01-09 19:17:54,967 - INFO - Starte Cache Warmup...
+2026-01-09 19:17:54,984 - INFO - Cache Warmup abgeschlossen
+2026-01-09 19:17:55,398 - INFO - [CLEANUP] GPIO bereinigt
+2026-01-09 19:17:55,398 - INFO - [DISTANCE SENSOR] Cleanup abgeschlossen
+2026-01-09 19:17:55,399 - ERROR - Hardware cleanup error: 'MotorController' object has no attribute 'cleanup'
+2026-01-09 19:17:55,399 - WARNING - [GET WEIGHT] Sensor nicht initialisiert
+2026-01-09 19:17:55,399 - WARNING - [DISTANCE SENSOR] Sensor nicht initialisiert
+2026-01-09 19:17:55,399 - WARNING - [GET WEIGHT] Sensor nicht initialisiert
+2026-01-09 19:17:55,400 - INFO - Server-Cleanup abgeschlossen

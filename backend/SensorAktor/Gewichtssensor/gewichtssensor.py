@@ -39,10 +39,11 @@ class Gewichtssensor:
         self.reference_unit = 1.0  # Standardwert (wird nach Kalibrierung angepasst)
         self.offset = 0.0  # Standard-Offset (wird nach Tarierung angepasst)
         self.state = SensorState.INIT
+        self._is_tared = False  # Flag für Tarierungs-Status
 
         # Stabilisierungsparameter
         self.stabilization_time = 2.0
-        self.measurement_samples = 5
+        self.measurement_samples = 8  # Erhöht von 5 auf 8 für stabilere Messungen
 
         self.load_calibration()  # Lade Kalibrierungsdaten beim Start
 
@@ -92,52 +93,74 @@ class Gewichtssensor:
         if samples is None:
             samples = self.measurement_samples
 
+        logging.debug(f"[STABLE READING] Starte mit {samples} Samples (sammle {samples*2} Messungen)")
         readings = []
-        for i in range(samples * 2):  # Mehr Messungen für bessere Filterung
+        attempts = 0
+        max_attempts = samples * 6  # Noch mehr Versuche wegen Hardware-Instabilität
+
+        # HARDWARE-FILTER DEAKTIVIERT: HX711 Rohwerte schwanken zu stark
+        # MAD-Filter ist ausreichend für Ausreißer-Filterung
+
+        while len(readings) < samples * 2 and attempts < max_attempts:
+            attempts += 1
             try:
                 # KORRIGIERT: Verwende die korrekte HX711 API - verschiedene Varianten testen
                 raw = None
-                
-                # Versuche verschiedene HX711 API-Methoden
-                if hasattr(self.hx, 'get_weight'):
-                    raw = self.hx.get_weight()
+
+                # Versuche HX711 Rohwert-Methoden (in der richtigen Reihenfolge!)
+                # WICHTIG: get_value() gibt Rohwerte, get_weight() gibt berechnete Gewichte
+                if hasattr(self.hx, 'get_value'):
+                    raw = self.hx.get_value(1)  # 1 Sample für Geschwindigkeit
                 elif hasattr(self.hx, 'read'):
                     raw = self.hx.read()
-                elif hasattr(self.hx, 'get_value'):
-                    raw = self.hx.get_value()
                 elif hasattr(self.hx, 'read_average'):
-                    raw = self.hx.read_average()
+                    raw = self.hx.read_average(1)
                 else:
-                    # Fallback: versuche direkte Methoden-Aufrufe
+                    # Fallback
                     try:
-                        raw = self.hx.get_weight()
+                        raw = self.hx.get_value(1)
                     except:
-                        try:
-                            raw = self.hx.read_average(1)
-                        except:
-                            raw = None
-                
+                        raw = None
+                        logging.error(f"[STABLE READING] Versuch {attempts}: Fallback fehlgeschlagen")
+
+                # Akzeptiere alle nicht-None Rohwerte (MAD-Filter entfernt Ausreißer später)
                 if raw is not None:
                     readings.append(raw)
+                else:
+                    logging.debug(f"[STABLE READING] Versuch {attempts}: raw=None")
                 time.sleep(0.01)  # Kurze Pause zwischen Messungen
             except Exception as e:
-                logging.warning(f"[STABLE READING] Messung {i+1} fehlgeschlagen: {e}")
+                logging.warning(f"[STABLE READING] Versuch {attempts} fehlgeschlagen: {e}")
                 continue
 
         if len(readings) < samples:
             logging.error(f"[STABLE READING] Nur {len(readings)} von {samples} Messungen erfolgreich")
             return None
 
-        # Entferne Ausreißer (obere und untere 25%)
-        sorted_readings = sorted(readings)
-        trim_count = len(sorted_readings) // 4
-        if trim_count > 0:
-            trimmed_readings = sorted_readings[trim_count:-trim_count]
-        else:
-            trimmed_readings = sorted_readings
+        # VERBESSERTE Ausreißer-Entfernung mit Median Absolute Deviation (MAD)
+        import statistics
 
-        stable_value = sum(trimmed_readings) / len(trimmed_readings)
-        logging.debug(f"[STABLE READING] {len(readings)} Messungen, Mittelwert: {stable_value:.2f}")
+        # Berechne Median (robuster als Mean)
+        median = statistics.median(readings)
+
+        # Berechne MAD (Median Absolute Deviation)
+        mad = statistics.median([abs(x - median) for x in readings])
+
+        # Entferne Ausreißer (mehr als 2 MAD vom Median entfernt - aggressiver!)
+        # MAD = 0 bedeutet alle Werte sind gleich
+        if mad > 0:
+            threshold = 2 * mad  # Reduziert von 3 auf 2 für aggressivere Filterung
+            filtered_readings = [x for x in readings if abs(x - median) <= threshold]
+
+            if len(filtered_readings) < samples // 2:  # Zu viele Ausreißer
+                logging.warning(f"[STABLE READING] Zu viele Ausreißer! Median={median:.0f}, MAD={mad:.0f}")
+                # Verwende nur Werte nahe am Median
+                filtered_readings = sorted(readings, key=lambda x: abs(x - median))[:samples]
+        else:
+            filtered_readings = readings
+
+        stable_value = sum(filtered_readings) / len(filtered_readings)
+        logging.debug(f"[STABLE READING] {len(readings)} Messungen, {len(filtered_readings)} nach Filterung, Wert: {stable_value:.2f}")
         return stable_value
 
     def tare(self):
@@ -166,8 +189,14 @@ class Gewichtssensor:
                 self.offset = stable_reading
                 logging.info(f"[TARE] Tara abgeschlossen. Offset={self.offset:.2f}")
 
-                # Wechsle in TARED
-                self.state = SensorState.TARED
+                # Speichere Kalibrierung sofort
+                self.save_calibration()
+
+                # Wechsle zu READY damit get_weight() funktioniert
+                # Setze internes Flag für Kalibrierung
+                self.state = SensorState.READY
+                self._is_tared = True
+                logging.info("[TARE] Sensor ist jetzt READY für Messungen")
                 return True
 
             except Exception as e:
@@ -180,8 +209,13 @@ class Gewichtssensor:
         Thread-sichere Kalibrierung mit aufgelegtem Gewicht.
         """
         with self._lock:
-            if self.state != SensorState.TARED:
-                logging.error(f"[CAL] Abbruch: State={self.state}, erwartet=TARED.")
+            # Prüfe ob tariert wurde (entweder TARED State oder _is_tared Flag)
+            if not self._is_tared and self.state != SensorState.TARED:
+                logging.warning(f"[CAL] Sensor wurde noch nicht tariert. Bitte zuerst tarieren!")
+                # Erlaube Kalibrierung trotzdem, aber warne
+
+            if self.state == SensorState.ERROR:
+                logging.error(f"[CAL] Abbruch: State=ERROR")
                 return False
 
             logging.info(f"[CAL] Starte Kalibrierung mit bekanntem Gewicht: {known_weight} g")
@@ -239,8 +273,17 @@ class Gewichtssensor:
                 stable_reading = self._get_stable_reading()
                 if stable_reading is not None:
                     weight = (stable_reading - self.offset) / self.reference_unit
-                    weight_rounded = round(weight, 2)
-                    logging.debug(f"[GET WEIGHT] Rohwert: {stable_reading:.2f}, Gewicht: {weight_rounded:.2f} g")
+
+                    # DEADBAND: Werte unter 3g sind Rauschen/Drift - setze auf 0
+                    DEADBAND_THRESHOLD = 3.0  # gram
+                    if abs(weight) < DEADBAND_THRESHOLD:
+                        weight_rounded = 0.0
+                        logging.debug(f"[GET WEIGHT] Rohwert: {stable_reading:.2f}, Gewicht unter Deadband ({DEADBAND_THRESHOLD}g) -> 0g")
+                    else:
+                        # Verhindere negative Gewichtswerte - Minimum ist immer 0!
+                        weight_rounded = round(max(0, weight), 2)
+                        logging.debug(f"[GET WEIGHT] Rohwert: {stable_reading:.2f}, Gewicht: {weight_rounded:.2f} g")
+
                     return weight_rounded
                 else:
                     logging.error("[GET WEIGHT] Fehler beim Lesen des stabilen Rohwerts.")

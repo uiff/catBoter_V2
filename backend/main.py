@@ -743,6 +743,109 @@ def motor_post():
         logging.error(f"Motor POST endpoint error: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/motor/feed', methods=['POST'])
+def motor_feed():
+    """Motor Fütterung - Kompatibel mit Frontend"""
+    try:
+        data = request.get_json() or {}
+        amount = data.get('amount', 30.0)
+        timeout = data.get('timeout', 120)
+
+        motor = hardware.get_motor()
+        if motor is None:
+            return jsonify({'success': False, 'message': 'Motor nicht verfügbar'}), 500
+
+        # Cache invalidieren
+        smart_cache.set('motor', 'status', None)
+
+        # Gewicht vor der Fütterung messen
+        weight_before = None
+        weight_sensor = hardware.get_weight_sensor()
+        if weight_sensor is not None:
+            try:
+                weight_before = weight_sensor.get_weight()
+            except Exception as e:
+                logging.warning(f"Konnte Gewicht vor Fütterung nicht messen: {e}")
+
+        logging.info(f"🚀 Starte manuelle Fütterung: {amount}g (Timeout: {timeout}s)")
+
+        # Motor starten
+        motor.rotate_motor()
+
+        # Warte kurz damit Motor Zeit hat zu füttern
+        time.sleep(2)
+
+        # Gewicht nach der Fütterung messen
+        fed_amount = 0
+        weight_measurement_failed = False
+
+        if weight_sensor is not None and consumption_manager is not None:
+            try:
+                weight_after = weight_sensor.get_weight()
+
+                if weight_before is not None:
+                    # Berechne Differenz
+                    fed_amount = abs(weight_after - weight_before)
+                else:
+                    # Kein Gewicht vorher - verwende Standardwert
+                    fed_amount = amount
+                    logging.warning("Gewicht vorher nicht verfügbar - verwende Standardwert")
+
+                # Speichere Fütterung (auch wenn 0g, zeigt dass Fütterung durchgeführt wurde)
+                consumption_manager.add_feeding(fed_amount)
+                logging.info(f"✅ Manuelle Fütterung erfasst: {fed_amount:.1f}g")
+
+            except Exception as e:
+                logging.error(f"Fehler beim Erfassen der Fütterung: {e}")
+                # Speichere trotzdem mit Standardwert
+                try:
+                    consumption_manager.add_feeding(amount)
+                    fed_amount = amount
+                    weight_measurement_failed = True
+                    logging.warning(f"Fütterung mit Standardwert gespeichert: {amount}g")
+                except:
+                    pass
+
+        message = f'Fütterung durchgeführt: {fed_amount:.1f}g gefüttert'
+        if weight_measurement_failed:
+            message += ' (Gewichtsmessung fehlgeschlagen - Standardwert verwendet)'
+
+        return jsonify({
+            'success': True,
+            'message': message,
+            'fed_amount': fed_amount
+        }), 200
+
+    except Exception as e:
+        logging.error(f"Motor feed endpoint error: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/motor/stop', methods=['POST'])
+def motor_stop():
+    """Motor stoppen"""
+    try:
+        motor = hardware.get_motor()
+        if motor is None:
+            return jsonify({'success': False, 'message': 'Motor nicht verfügbar'}), 500
+
+        logging.info("🛑 Stoppe Motor...")
+        motor.stop_motor()
+
+        # Ausrichten auf Nullstellung
+        motor.rotate_motor(
+            forewardSteps=motor.rotational_difference(),
+            backwardSteps=0,
+            full_rotation_counts=1
+        )
+        motor.stop_motor()
+
+        smart_cache.set('motor', 'status', None)
+        return jsonify({'success': True, 'message': 'Motor wurde gestoppt'}), 200
+
+    except Exception as e:
+        logging.error(f"Motor stop endpoint error: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @app.route('/weight/tare', methods=['POST'])
 def weight_tare():
     """Gewichtssensor tarieren"""
@@ -1111,9 +1214,14 @@ def save_feeding_plan():
         # Aktuelle Pläne laden
         feeding_plans = load_feeding_plans()
 
+        # Wenn neuer Plan aktiv sein soll, deaktiviere alle anderen
+        if data.get('active', False):
+            for plan in feeding_plans:
+                plan['active'] = False
+
         # Plan hinzufügen
         feeding_plans.append(data)
-        
+
         # Pläne speichern
         if save_feeding_plans(feeding_plans):
             # Status aktualisieren
@@ -1774,6 +1882,97 @@ def get_today_consumption():
         logging.error(f"Today consumption error: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/consumption/today_detailed')
+def get_today_detailed():
+    """Detaillierte heutige Fütterungen mit Plan und durchgeführten Fütterungen"""
+    try:
+        from datetime import datetime
+        import json
+
+        # Lade aktiven Feeding Plan
+        plan_path = os.path.join(os.path.dirname(__file__), 'feedingPlan', 'feedingPlans.json')
+        with open(plan_path, 'r', encoding='utf-8') as f:
+            plans = json.load(f)
+
+        # Finde aktiven Plan
+        active_plan = next((p for p in plans if p.get('active', False)), None)
+
+        feedings = []
+        today = datetime.now()
+        day_name_map = {
+            0: 'Montag', 1: 'Dienstag', 2: 'Mittwoch',
+            3: 'Donnerstag', 4: 'Freitag', 5: 'Samstag', 6: 'Sonntag'
+        }
+        today_day = day_name_map[today.weekday()]
+
+        if active_plan and 'feedingSchedule' in active_plan:
+            scheduled = active_plan['feedingSchedule'].get(today_day, [])
+            for feeding in scheduled:
+                # Extract actual fed amount from message if available
+                fed_amount = feeding.get('fed_amount', 0)
+                message = feeding.get('message', '')
+
+                # Parse amount from message like "16.4g gefüttert (Soll: 15.0g)"
+                if message and 'gefüttert' in message:
+                    import re
+                    match = re.search(r'(\d+\.?\d*)g gefüttert', message)
+                    if match:
+                        fed_amount = float(match.group(1))
+
+                feedings.append({
+                    'time': feeding['time'],
+                    'amount': fed_amount,
+                    'type': 'auto',
+                    'status': feeding.get('status'),
+                    'planned_amount': feeding.get('weight', 0)
+                })
+
+        # Lade ALLE Fütterungen von heute aus current_day.json (inkl. manuelle)
+        current_day_path = os.path.join(os.path.dirname(__file__), 'backend', 'data', 'current_day.json')
+        if os.path.exists(current_day_path):
+            try:
+                with open(current_day_path, 'r') as f:
+                    current_day = json.load(f)
+
+                # Finde manuelle Fütterungen (die nicht im Plan sind)
+                today_str = today.strftime('%Y-%m-%d')
+                if current_day.get('date') == today_str and 'feedings' in current_day:
+                    # Sammle alle Zeiten aus dem Plan
+                    planned_times = set()
+                    if active_plan and 'feedingSchedule' in active_plan:
+                        scheduled = active_plan['feedingSchedule'].get(today_day, [])
+                        for s in scheduled:
+                            planned_times.add(s['time'])
+
+                    # Finde Fütterungen, die NICHT im Plan sind (= manuell)
+                    for feeding in current_day['feedings']:
+                        feeding_time = feeding.get('time', '')
+                        # Nur hinzufügen wenn nicht schon im Plan
+                        if feeding_time and feeding_time not in planned_times:
+                            feedings.append({
+                                'time': feeding_time,
+                                'amount': feeding.get('amount', 0),
+                                'type': 'manual',
+                                'status': True  # Manuelle Fütterungen sind immer durchgeführt
+                            })
+            except Exception as e:
+                logging.warning(f"Konnte current_day.json nicht laden: {e}")
+
+        # Sortiere nach Zeit
+        feedings.sort(key=lambda x: x['time'])
+
+        return jsonify({
+            'date': today.strftime('%Y-%m-%d'),
+            'feedings': feedings,
+            'total': consumption_manager.get_today_total() if consumption_manager else 0
+        })
+
+    except Exception as e:
+        import traceback
+        logging.error(f"Today detailed error: {e}")
+        logging.error(traceback.format_exc())
+        return jsonify({'date': datetime.now().strftime('%Y-%m-%d'), 'feedings': [], 'total': 0, 'error': str(e)})
+
 # DASHBOARD ENDPOINT (Performance-optimiert)
 @app.route('/dashboard')
 def dashboard():
@@ -1799,21 +1998,40 @@ def dashboard():
             except:
                 motor_status = 0
         
-        # Sammle Ergebnisse mit Timeout
+        # Sammle Ergebnisse mit Timeout (2s statt 10s für schnellere Response)
         results = {}
         for name, future in futures.items():
             try:
-                results[name] = future.result(timeout=10)
+                results[name] = future.result(timeout=2)
             except Exception as e:
-                logging.error(f"Dashboard {name} error: {e}")
-                results[name] = None
+                logging.warning(f"Dashboard {name} timeout/error: {e}")
+                # Verwende gecachte Werte oder None
+                if name == 'weight':
+                    results[name] = smart_cache.weight_cache.get('data')
+                elif name == 'distance':
+                    results[name] = smart_cache.distance_cache.get('data')
+                elif name == 'system':
+                    results[name] = smart_cache.system_cache.get('data')
+                elif name == 'feeding':
+                    results[name] = smart_cache.feeding_cache.get('data')
+                else:
+                    results[name] = None
         
+        # Hole heutigen Gesamtverbrauch
+        total_consumed_today = 0
+        if consumption_manager:
+            try:
+                total_consumed_today = consumption_manager.get_today_total()
+            except:
+                pass
+
         # Dashboard-Response
         dashboard_data = {
             'timestamp': datetime.datetime.now().isoformat(),
             'weight': results['weight'],
             'distance': results['distance'],
             'motor_status': motor_status,
+            'total_consumed_today': total_consumed_today,
             'system_info': results['system'],
             'feeding_status': results['feeding'],
             'cache_stats': {
