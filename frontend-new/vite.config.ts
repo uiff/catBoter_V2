@@ -21,4 +21,30 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    // Optimize bundle size
+    target: 'esnext',
+    minify: 'esbuild', // Use esbuild for faster builds
+    rollupOptions: {
+      output: {
+        // Code splitting strategy
+        manualChunks: {
+          // Vendor chunk: React and core libraries
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          // UI chunk: Framer Motion and Lucide icons
+          ui: ['framer-motion', 'lucide-react'],
+          // Charts chunk: Recharts library
+          charts: ['recharts'],
+        },
+        // Optimize chunk file names
+        chunkFileNames: 'assets/js/[name]-[hash].js',
+        entryFileNames: 'assets/js/[name]-[hash].js',
+        assetFileNames: 'assets/[ext]/[name]-[hash].[ext]',
+      },
+    },
+    // Increase chunk size warning limit (for initial assessment)
+    chunkSizeWarningLimit: 600,
+    // Enable source maps for debugging (optional, can be disabled for production)
+    sourcemap: false,
+  },
 })

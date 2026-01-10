@@ -2,18 +2,13 @@ adafruit-circuitpython-vl53l0x
 RPi.GPIO
 Flask
 flask-cors
-flask-swagger-ui 
+flask-swagger-ui
 flask-restful
-psutil 
-netifaces 
+psutil
+netifaces
 wifi
 HX711-multi
 influxdb-client
 numpy
-#streamlit
 git+https://github.com/tatobari/hx711py.git
-
-
-
-
 

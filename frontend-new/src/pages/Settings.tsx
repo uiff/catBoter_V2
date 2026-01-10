@@ -3,6 +3,7 @@ import { SystemControl } from '@/components/settings/SystemControl'
 import { TimeConfiguration } from '@/components/settings/TimeConfiguration'
 import { SystemNotifications } from '@/components/settings/SystemNotifications'
 import { WiFiConfiguration } from '@/components/settings/WiFiConfiguration'
+import { WiFiFallback } from '@/components/settings/WiFiFallback'
 import { LANConfiguration } from '@/components/settings/LANConfiguration'
 import { SystemSettings } from '@/components/settings/SystemSettings'
 import { WeightCalibration } from '@/components/settings/WeightCalibration'
@@ -23,6 +24,9 @@ export function Settings() {
 
       {/* WiFi Configuration */}
       <WiFiConfiguration />
+
+      {/* WiFi Fallback Access Point */}
+      <WiFiFallback />
 
       {/* LAN Configuration */}
       <LANConfiguration />

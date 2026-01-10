@@ -51,7 +51,7 @@ export function Dashboard() {
         toast.success('Fütterung erfolgreich!', {
           description: result.message
         })
-        setTimeout(() => refresh(), 1000)
+        refresh() // Sofort aktualisieren, kein Timeout
       } else {
         toast.error('Fütterung fehlgeschlagen', {
           description: result.message
@@ -81,7 +81,7 @@ export function Dashboard() {
         toast.success('Motor gestoppt', {
           description: result.message
         })
-        setTimeout(() => refresh(), 500)
+        refresh() // Sofort aktualisieren, kein Timeout
       } else {
         toast.error('Stop fehlgeschlagen', {
           description: result.message

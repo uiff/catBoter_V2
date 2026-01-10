@@ -1,14 +1,28 @@
-import { useState } from 'react'
+import { useState, lazy, Suspense } from 'react'
 import { Toaster } from 'sonner'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { PWAInstallBanner } from './components/common/PWAInstallBanner'
 import { Sidebar } from './components/layout/Sidebar'
 import { Header } from './components/layout/Header'
-import { Dashboard } from './pages/Dashboard'
-import { FeedControl } from './pages/FeedControl'
-import { Monitoring } from './pages/Monitoring'
-import { Settings } from './pages/Settings'
 import { useSensorData } from './hooks/useSensorData'
+
+// Lazy load pages for better code splitting
+const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })))
+const FeedControl = lazy(() => import('./pages/FeedControl').then(m => ({ default: m.FeedControl })))
+const Monitoring = lazy(() => import('./pages/Monitoring').then(m => ({ default: m.Monitoring })))
+const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })))
+
+// Loading component
+const PageLoader = () => (
+  <div className="flex items-center justify-center h-full">
+    <div className="glass rounded-xl p-8">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+        <p className="text-sm text-muted-foreground">Lädt...</p>
+      </div>
+    </div>
+  </div>
+)
 
 function App() {
   const [currentPage, setCurrentPage] = useState('dashboard')
@@ -66,10 +80,12 @@ function App() {
         />
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
-          {currentPage === 'dashboard' && <Dashboard />}
-          {currentPage === 'feed' && <FeedControl />}
-          {currentPage === 'monitor' && <Monitoring />}
-          {currentPage === 'settings' && <Settings />}
+          <Suspense fallback={<PageLoader />}>
+            {currentPage === 'dashboard' && <Dashboard />}
+            {currentPage === 'feed' && <FeedControl />}
+            {currentPage === 'monitor' && <Monitoring />}
+            {currentPage === 'settings' && <Settings />}
+          </Suspense>
         </main>
       </div>
     </div>

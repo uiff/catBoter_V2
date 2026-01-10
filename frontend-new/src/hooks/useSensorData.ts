@@ -11,16 +11,19 @@ function shouldUpdateValue(oldVal: number | null, newVal: number | null, thresho
 
 export function useSensorData() {
   const [data, setData] = useState<SensorData | null>(null)
-  const [isConnected, setIsConnected] = useState(false)
+  const [isConnected, setIsConnected] = useState(true) // Start optimistisch mit true
   const [error, setError] = useState<string | null>(null)
   const socketRef = useRef<Socket | null>(null)
   const lastUpdateRef = useRef<string>('')
   const lastValidDataRef = useRef<SensorData | null>(null)
   const updateTimeoutRef = useRef<number | null>(null)
+  const failureCountRef = useRef<number>(0) // Zähle Fehler bevor Offline
 
   const fetchREST = useCallback(async () => {
     try {
-      const res = await fetch(`${config.apiBaseUrl}/dashboard`)
+      const res = await fetch(`${config.apiBaseUrl}/dashboard`, {
+        signal: AbortSignal.timeout(1000) // 1 Sekunde Timeout
+      })
       const jsonData = await res.json()
 
       // Transform dashboard data to sensor data format
@@ -36,13 +39,17 @@ export function useSensorData() {
       if (sensorData && (sensorData.weight !== undefined || sensorData.distance !== undefined)) {
         lastValidDataRef.current = sensorData
         setData(sensorData)
-        setIsConnected(true) // Set connected when data is received
+        failureCountRef.current = 0 // Reset Fehlerzähler
+        setIsConnected(true)
       }
       setError(null)
     } catch (err) {
-      console.error('REST fetch error:', err)
-      setError('Connection error')
-      setIsConnected(false)
+      // Nur nach mehreren Fehlern als offline markieren
+      failureCountRef.current++
+      if (failureCountRef.current >= 3) { // Erst nach 3 Fehlern offline
+        setIsConnected(false)
+        setError('Connection error')
+      }
       // Keep showing last valid data on error
       if (lastValidDataRef.current) {
         setData(lastValidDataRef.current)
@@ -77,29 +84,41 @@ export function useSensorData() {
     socket.on('sensor_update', (sensorData: SensorData) => {
       // Only update if data has actually changed and is valid
       if (sensorData && (sensorData.weight !== undefined || sensorData.distance !== undefined)) {
-        // Debouncing: Nur signifikante Änderungen sofort anzeigen
         const currentData = lastValidDataRef.current
-        const hasSignificantChange =
-          !currentData ||
-          shouldUpdateValue(currentData.weight, sensorData.weight, 0.5) ||
-          shouldUpdateValue(currentData.distance, sensorData.distance, 0.5) ||
-          currentData.motor !== sensorData.motor
 
-        if (hasSignificantChange) {
-          // Signifikante Änderung - sofort aktualisieren
+        // Motor-Änderungen IMMER sofort anzeigen für schnelle Reaktion
+        const motorChanged = currentData && currentData.motor !== sensorData.motor
+
+        if (motorChanged) {
+          // Motor-Status sofort aktualisieren
           lastValidDataRef.current = sensorData
           setData(sensorData)
           setError(null)
+          failureCountRef.current = 0
         } else {
-          // Kleine Änderung - verzögert aktualisieren (debounce)
-          if (updateTimeoutRef.current) {
-            clearTimeout(updateTimeoutRef.current)
-          }
-          updateTimeoutRef.current = setTimeout(() => {
+          // Andere Werte: Nur signifikante Änderungen sofort anzeigen
+          const hasSignificantChange =
+            !currentData ||
+            shouldUpdateValue(currentData.weight, sensorData.weight, 1.0) ||
+            shouldUpdateValue(currentData.distance, sensorData.distance, 1.0)
+
+          if (hasSignificantChange) {
+            // Signifikante Änderung - sofort aktualisieren
             lastValidDataRef.current = sensorData
             setData(sensorData)
             setError(null)
-          }, 300) // 0.3 Sekunden Verzögerung für kleine Änderungen
+            failureCountRef.current = 0
+          } else {
+            // Kleine Änderung - verzögert aktualisieren (debounce)
+            if (updateTimeoutRef.current) {
+              clearTimeout(updateTimeoutRef.current)
+            }
+            updateTimeoutRef.current = setTimeout(() => {
+              lastValidDataRef.current = sensorData
+              setData(sensorData)
+              setError(null)
+            }, 100) // Nur 100ms Verzögerung für kleine Änderungen
+          }
         }
 
         lastUpdateRef.current = JSON.stringify(sensorData)

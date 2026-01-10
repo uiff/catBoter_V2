@@ -791,20 +791,25 @@ def motor_feed():
                     fed_amount = amount
                     logging.warning("Gewicht vorher nicht verfügbar - verwende Standardwert")
 
-                # Speichere Fütterung (auch wenn 0g, zeigt dass Fütterung durchgeführt wurde)
-                consumption_manager.add_feeding(fed_amount)
-                logging.info(f"✅ Manuelle Fütterung erfasst: {fed_amount:.1f}g")
+                # Nur speichern wenn tatsächlich etwas gefüttert wurde (Mindestens 1g)
+                if fed_amount >= 1.0:
+                    consumption_manager.add_feeding(fed_amount)
+                    logging.info(f"✅ Manuelle Fütterung erfasst: {fed_amount:.1f}g")
+                else:
+                    logging.warning(f"⚠️ Fütterung NICHT gespeichert - zu wenig Gewicht: {fed_amount:.1f}g (< 1.0g)")
+                    weight_measurement_failed = True
 
             except Exception as e:
                 logging.error(f"Fehler beim Erfassen der Fütterung: {e}")
-                # Speichere trotzdem mit Standardwert
-                try:
-                    consumption_manager.add_feeding(amount)
-                    fed_amount = amount
-                    weight_measurement_failed = True
-                    logging.warning(f"Fütterung mit Standardwert gespeichert: {amount}g")
-                except:
-                    pass
+                # Nur Standardwert speichern wenn explizit angefordert und >= 1g
+                if amount >= 1.0:
+                    try:
+                        consumption_manager.add_feeding(amount)
+                        fed_amount = amount
+                        weight_measurement_failed = True
+                        logging.warning(f"Fütterung mit Standardwert gespeichert: {amount}g")
+                    except:
+                        pass
 
         message = f'Fütterung durchgeführt: {fed_amount:.1f}g gefüttert'
         if weight_measurement_failed:
@@ -2422,6 +2427,127 @@ def warmup_cache():
     warmup_thread.start()
     
     logging.info("Cache Warmup abgeschlossen")
+
+#######################################################
+# WIFI FALLBACK ACCESS POINT ENDPOINTS
+#######################################################
+
+wifi_fallback_manager = None
+
+try:
+    from system.wifi_fallback import WiFiFallbackManager
+    wifi_fallback_manager = WiFiFallbackManager()
+    logging.info("WiFi Fallback Manager initialisiert")
+except Exception as e:
+    logging.warning(f"WiFi Fallback Manager konnte nicht initialisiert werden: {e}")
+
+@app.route('/system/wifi_fallback/status')
+def wifi_fallback_status():
+    """Gibt Status des WiFi Fallback Systems zurück"""
+    try:
+        if wifi_fallback_manager is None:
+            return jsonify({'error': 'WiFi Fallback nicht verfügbar'}), 503
+
+        return jsonify({
+            'enabled': wifi_fallback_manager.config['enabled'],
+            'ap_active': wifi_fallback_manager.ap_active,
+            'wifi_connected': wifi_fallback_manager.is_wifi_connected(),
+            'ap_ssid': wifi_fallback_manager.config['ssid'],
+            'ap_ip': wifi_fallback_manager.config['ip_address'],
+            'failed_checks': wifi_fallback_manager.failed_checks,
+            'max_failed_checks': wifi_fallback_manager.max_failed_checks
+        })
+    except Exception as e:
+        logging.error(f"WiFi Fallback Status Error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/system/wifi_fallback/config', methods=['GET'])
+def get_wifi_fallback_config():
+    """Gibt Konfiguration des WiFi Fallback Systems zurück"""
+    try:
+        if wifi_fallback_manager is None:
+            return jsonify({'error': 'WiFi Fallback nicht verfügbar'}), 503
+
+        # Passwort ausblenden
+        config = wifi_fallback_manager.config.copy()
+        config['password'] = '********'
+
+        return jsonify(config)
+    except Exception as e:
+        logging.error(f"WiFi Fallback Config Error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/system/wifi_fallback/config', methods=['POST'])
+def update_wifi_fallback_config():
+    """Aktualisiert Konfiguration des WiFi Fallback Systems"""
+    try:
+        if wifi_fallback_manager is None:
+            return jsonify({'error': 'WiFi Fallback nicht verfügbar'}), 503
+
+        data = request.get_json()
+
+        # Erlaubte Felder
+        allowed_fields = ['enabled', 'ssid', 'password', 'channel', 'check_interval']
+
+        for field in allowed_fields:
+            if field in data:
+                wifi_fallback_manager.config[field] = data[field]
+
+        wifi_fallback_manager.save_config()
+
+        return jsonify({
+            'success': True,
+            'message': 'Konfiguration aktualisiert',
+            'config': wifi_fallback_manager.config
+        })
+    except Exception as e:
+        logging.error(f"WiFi Fallback Config Update Error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/system/wifi_fallback/enable_ap', methods=['POST'])
+def enable_wifi_fallback_ap():
+    """Aktiviert Access Point manuell"""
+    try:
+        if wifi_fallback_manager is None:
+            return jsonify({'error': 'WiFi Fallback nicht verfügbar'}), 503
+
+        success = wifi_fallback_manager.enable_access_point()
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': f'Access Point aktiviert: {wifi_fallback_manager.config["ssid"]}',
+                'ssid': wifi_fallback_manager.config['ssid'],
+                'ip': wifi_fallback_manager.config['ip_address'],
+                'password': wifi_fallback_manager.config['password']
+            })
+        else:
+            return jsonify({'error': 'Access Point konnte nicht aktiviert werden'}), 500
+
+    except Exception as e:
+        logging.error(f"WiFi Fallback Enable AP Error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/system/wifi_fallback/disable_ap', methods=['POST'])
+def disable_wifi_fallback_ap():
+    """Deaktiviert Access Point manuell"""
+    try:
+        if wifi_fallback_manager is None:
+            return jsonify({'error': 'WiFi Fallback nicht verfügbar'}), 503
+
+        success = wifi_fallback_manager.disable_access_point()
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Access Point deaktiviert, WiFi Client wiederhergestellt'
+            })
+        else:
+            return jsonify({'error': 'Access Point konnte nicht deaktiviert werden'}), 500
+
+    except Exception as e:
+        logging.error(f"WiFi Fallback Disable AP Error: {e}")
+        return jsonify({'error': str(e)}), 500
 
 # SERVER START
 if __name__ == '__main__':

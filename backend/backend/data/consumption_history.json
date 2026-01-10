@@ -183,6 +183,14 @@
       "avg_per_feeding": 24.7,
       "min": 22.5,
       "max": 27.0
+    },
+    {
+      "date": "2026-01-09",
+      "total": 91.2,
+      "feedings": 7,
+      "avg_per_feeding": 13.0,
+      "min": 0.0,
+      "max": 32.0
     }
   ],
   "weekly": [

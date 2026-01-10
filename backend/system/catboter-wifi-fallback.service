@@ -1,0 +1,24 @@
+[Unit]
+Description=CatBoter WiFi Fallback Access Point Service
+After=network.target wpa_supplicant.service
+Wants=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/app
+ExecStart=/usr/bin/python3 /app/backend/system/wifi_fallback.py
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=catboter-wifi-fallback
+
+# Security
+NoNewPrivileges=false
+PrivateTmp=false
+
+[Install]
+WantedBy=multi-user.target
