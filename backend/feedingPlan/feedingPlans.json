@@ -148,19 +148,29 @@
       "Sonntag": [
         {
           "time": "07:00",
-          "weight": 15
+          "weight": 15,
+          "status": true,
+          "last_attempt": "2026-01-11T07:00:51.836509",
+          "message": "15.2g gefüttert (Soll: 15.0g)",
+          "fed_amount": 0.0
         },
         {
           "time": "11:00",
-          "weight": 15
+          "weight": 15,
+          "status": true,
+          "last_attempt": "2026-01-11T11:01:43.474528",
+          "message": "18.7g gefüttert (Soll: 15.0g)",
+          "fed_amount": 0.0
         },
         {
           "time": "15:00",
-          "weight": 15
+          "weight": 15,
+          "status": null
         },
         {
           "time": "19:00",
-          "weight": 15
+          "weight": 15,
+          "status": null
         }
       ]
     },
