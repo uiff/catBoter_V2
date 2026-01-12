@@ -7,6 +7,7 @@ import { WiFiFallback } from '@/components/settings/WiFiFallback'
 import { LANConfiguration } from '@/components/settings/LANConfiguration'
 import { SystemSettings } from '@/components/settings/SystemSettings'
 import { WeightCalibration } from '@/components/settings/WeightCalibration'
+import { TankCalibration } from '@/components/settings/TankCalibration'
 
 export function Settings() {
   return (
@@ -21,6 +22,9 @@ export function Settings() {
 
       {/* Sensor Calibration */}
       <WeightCalibration />
+
+      {/* Tank Calibration */}
+      <TankCalibration />
 
       {/* WiFi Configuration */}
       <WiFiConfiguration />

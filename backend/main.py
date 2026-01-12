@@ -652,6 +652,83 @@ def distance():
         logging.error(f"Distance endpoint error: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/tank/calibration', methods=['GET'])
+def get_tank_calibration():
+    """Tankfüllstand Kalibrierung abrufen"""
+    try:
+        calibration_file = os.path.join(os.path.dirname(__file__), 'backend', 'data', 'tank_calibration.json')
+
+        if os.path.exists(calibration_file):
+            with open(calibration_file, 'r') as f:
+                calibration = json.load(f)
+        else:
+            # Default Werte
+            calibration = {
+                'min_distance': 3,   # Voller Tank
+                'max_distance': 23   # Leerer Tank
+            }
+
+        return jsonify(calibration)
+    except Exception as e:
+        logging.error(f"Get tank calibration error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/tank/calibration', methods=['POST'])
+def set_tank_calibration():
+    """Tankfüllstand Kalibrierung speichern"""
+    try:
+        data = request.get_json()
+
+        if not data or 'min_distance' not in data or 'max_distance' not in data:
+            return jsonify({'error': 'Missing calibration data'}), 400
+
+        min_dist = float(data['min_distance'])
+        max_dist = float(data['max_distance'])
+
+        # Validierung
+        if min_dist >= max_dist:
+            return jsonify({'error': 'min_distance muss kleiner als max_distance sein'}), 400
+
+        if min_dist < 0 or max_dist > 100:
+            return jsonify({'error': 'Ungültige Distanzwerte (0-100cm)'}), 400
+
+        calibration = {
+            'min_distance': min_dist,
+            'max_distance': max_dist
+        }
+
+        # Speichern
+        data_dir = os.path.join(os.path.dirname(__file__), 'backend', 'data')
+        os.makedirs(data_dir, exist_ok=True)
+
+        calibration_file = os.path.join(data_dir, 'tank_calibration.json')
+        with open(calibration_file, 'w') as f:
+            json.dump(calibration, f, indent=2)
+
+        logging.info(f"Tank calibration saved: {calibration}")
+        return jsonify({'success': True, 'calibration': calibration})
+
+    except Exception as e:
+        logging.error(f"Set tank calibration error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/distance', methods=['GET'])
+def get_distance():
+    """Aktuelle Distanzmessung vom Ultraschallsensor abrufen"""
+    try:
+        # Get cached sensor data which includes distance
+        sensor_data = get_cached_sensor_data()
+
+        if 'error' in sensor_data:
+            return jsonify({'error': sensor_data['error'], 'distance': 0}), 500
+
+        distance = sensor_data.get('distance', 0)
+
+        return jsonify({'distance': distance})
+    except Exception as e:
+        logging.error(f"Get distance error: {e}")
+        return jsonify({'error': str(e), 'distance': 0}), 500
+
 @app.route('/motor', methods=['GET'])
 def motor_get():
     """Motor Status - GET (automatische Erkennung der MotorController-Version)"""
@@ -1244,6 +1321,15 @@ def get_feeding_plans():
     """Alle Fütterungspläne abrufen"""
     try:
         feeding_plans = load_feeding_plans()
+
+        # Ensure all plans have 'name' field for frontend compatibility
+        for plan in feeding_plans:
+            if 'name' not in plan and 'planName' in plan:
+                plan['name'] = plan['planName']
+            # Also ensure 'days' field exists (map from selectedDays if needed)
+            if 'days' not in plan and 'selectedDays' in plan:
+                plan['days'] = plan['selectedDays']
+
         return jsonify(feeding_plans), 200
     except Exception as e:
         logging.error(f"Get feeding plans error: {e}")
@@ -1279,9 +1365,13 @@ def load_feeding_plan():
     """Fütterungsplan laden/aktivieren"""
     try:
         data = request.get_json()
-        plan_name = data.get('planName')  # Beachte: planName statt plan_name!
-        
+        logging.info(f"Load feeding plan request data: {data}")
+
+        # Accept both planName and plan_name for compatibility
+        plan_name = data.get('plan_name') or data.get('planName') if data else None
+
         if not plan_name:
+            logging.error(f"No plan name provided. Data: {data}")
             return jsonify({'error': 'Kein Planname angegeben'}), 400
 
         # Pläne laden
@@ -1292,7 +1382,9 @@ def load_feeding_plan():
         # Alle Pläne deaktivieren, gewählten aktivieren
         plan_found = False
         for plan in feeding_plans:
-            plan['active'] = (plan.get('planName') == plan_name)
+            # Support both 'planName' and 'name' fields
+            current_name = plan.get('name') or plan.get('planName')
+            plan['active'] = (current_name == plan_name)
             if plan['active']:
                 plan_found = True
 
@@ -1522,18 +1614,24 @@ def activate_random_plan():
     try:
         import random
         from datetime import datetime
-        
+
         data = request.get_json()
-        plan_name = data.get('planName')
-        
+        logging.info(f"Activate random plan request data: {data}")
+
+        # Accept both planName and plan_name for compatibility
+        plan_name = data.get('plan_name') or data.get('planName') if data else None
+
         if not plan_name:
+            logging.error(f"No plan name provided. Data: {data}")
             return jsonify({'error': 'Kein Planname angegeben'}), 400
         
         # Random-Pläne laden
         random_plans = load_random_plans()
         plan = None
         for p in random_plans:
-            p['active'] = (p.get('planName') == plan_name)
+            # Support both 'planName' and 'name' fields
+            current_name = p.get('name') or p.get('planName')
+            p['active'] = (current_name == plan_name)
             if p['active']:
                 plan = p
         
@@ -1943,17 +2041,34 @@ def get_today_detailed():
                 today_str = today.strftime('%Y-%m-%d')
                 if current_day.get('date') == today_str and 'feedings' in current_day:
                     # Sammle alle Zeiten aus dem Plan
-                    planned_times = set()
+                    planned_times = []
                     if active_plan and 'feedingSchedule' in active_plan:
                         scheduled = active_plan['feedingSchedule'].get(today_day, [])
                         for s in scheduled:
-                            planned_times.add(s['time'])
+                            planned_times.append(s['time'])
+
+                    # Hilfsfunktion um zu prüfen ob eine Zeit nahe einer geplanten Zeit ist
+                    def is_near_planned_time(feeding_time_str, planned_times_list, tolerance_minutes=10):
+                        """Prüft ob feeding_time innerhalb von tolerance_minutes einer geplanten Zeit liegt"""
+                        try:
+                            from datetime import datetime, timedelta
+                            feeding_time = datetime.strptime(feeding_time_str, '%H:%M:%S')
+
+                            for planned_time_str in planned_times_list:
+                                planned_time = datetime.strptime(planned_time_str, '%H:%M:%S')
+                                time_diff = abs((feeding_time - planned_time).total_seconds())
+                                if time_diff <= tolerance_minutes * 60:
+                                    return True
+                            return False
+                        except:
+                            # Bei Parse-Fehler: Fallback auf exakte String-Übereinstimmung
+                            return feeding_time_str in planned_times_list
 
                     # Finde Fütterungen, die NICHT im Plan sind (= manuell)
                     for feeding in current_day['feedings']:
                         feeding_time = feeding.get('time', '')
-                        # Nur hinzufügen wenn nicht schon im Plan
-                        if feeding_time and feeding_time not in planned_times:
+                        # Nur hinzufügen wenn nicht nahe einer geplanten Zeit
+                        if feeding_time and not is_near_planned_time(feeding_time, planned_times):
                             feedings.append({
                                 'time': feeding_time,
                                 'amount': feeding.get('amount', 0),
@@ -2218,36 +2333,40 @@ def time_status():
     try:
         import subprocess
         from datetime import datetime
-        
+
         # Aktuelle Zeit
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        
+
         # NTP-Status prüfen
         ntp_enabled = False
         ntp_synced = False
-        
+        docker_container = False
+
         try:
             # Prüfe ob timedatectl verfügbar ist
-            result = subprocess.run(['timedatectl', 'status'], 
+            result = subprocess.run(['timedatectl', 'status'],
                                   capture_output=True, text=True, timeout=3)
             if result.returncode == 0:
                 output = result.stdout.lower()
                 ntp_enabled = 'ntp service: active' in output or 'network time on: yes' in output
                 ntp_synced = 'system clock synchronized: yes' in output
+            else:
+                # timedatectl fehlgeschlagen - vermutlich Docker Container
+                docker_container = True
         except:
-            # Fallback: Prüfe ob ntpd/chronyd läuft
-            try:
-                result = subprocess.run(['ps', 'aux'], 
-                                      capture_output=True, text=True, timeout=2)
-                if 'ntpd' in result.stdout or 'chronyd' in result.stdout:
-                    ntp_enabled = True
-            except:
-                pass
-        
+            # Kein timedatectl verfügbar - vermutlich Docker Container
+            docker_container = True
+
+        # Im Docker Container: Zeit wird vom Host-System verwaltet
+        if docker_container:
+            ntp_enabled = True  # Zeit kommt vom Host
+            ntp_synced = True   # Annahme: Host hat korrekte Zeit
+
         return jsonify({
             'current_time': current_time,
             'ntp_enabled': ntp_enabled,
-            'ntp_synced': ntp_synced
+            'ntp_synced': ntp_synced,
+            'docker_managed': docker_container
         })
     except Exception as e:
         logging.error(f"Time status error: {e}")
@@ -2259,26 +2378,37 @@ def enable_ntp():
     try:
         import subprocess
         logging.info("NTP aktivieren...")
-        
+
+        # Prüfe ob systemd verfügbar ist (Docker-Container haben oft kein systemd)
+        systemd_check = subprocess.run(['which', 'systemctl'],
+                                      capture_output=True, timeout=2)
+
+        if systemd_check.returncode != 0:
+            return jsonify({
+                'success': True,
+                'message': 'NTP-Konfiguration in Docker-Container nicht verfügbar',
+                'warning': 'System läuft im Container ohne systemd. NTP wird vom Host-System verwaltet.'
+            }), 200
+
         # Teste sudo-Rechte
-        test_result = subprocess.run(['sudo', '-n', 'true'], 
+        test_result = subprocess.run(['sudo', '-n', 'true'],
                                     capture_output=True, timeout=2)
-        
+
         if test_result.returncode != 0:
             return jsonify({
                 'error': 'Keine sudo-Berechtigung für timedatectl.',
                 'hint': 'Fügen Sie in /etc/sudoers.d/catboter hinzu: <username> ALL=(ALL) NOPASSWD: /usr/bin/timedatectl'
             }), 403
-        
+
         # Aktiviere NTP mit timedatectl
-        result = subprocess.run(['sudo', 'timedatectl', 'set-ntp', 'true'], 
+        result = subprocess.run(['sudo', 'timedatectl', 'set-ntp', 'true'],
                               capture_output=True, text=True, timeout=5)
-        
+
         if result.returncode == 0:
             return jsonify({'message': 'NTP erfolgreich aktiviert', 'success': True}), 200
         else:
             return jsonify({'error': f'Fehler beim Aktivieren von NTP: {result.stderr}'}), 500
-            
+
     except Exception as e:
         logging.error(f"Enable NTP error: {e}")
         return jsonify({'error': str(e)}), 500

@@ -42,6 +42,8 @@ export function RecentFeedings({ feedings, date }: RecentFeedingsProps) {
             const hasAmount = feeding.amount > 0
             const isManual = feeding.type === 'manual'
             const isCompleted = feeding.status === true
+            const isFailed = feeding.status === false
+            const isPending = feeding.status === null && !isPast
 
             // Grüne Markierung für durchgeführte Fütterungen
             const isSuccess = isCompleted && hasAmount
@@ -59,24 +61,22 @@ export function RecentFeedings({ feedings, date }: RecentFeedingsProps) {
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                     isSuccess
                       ? 'bg-green-500/20'
-                      : isPast
-                        ? hasAmount
-                          ? 'bg-primary/20'
-                          : 'bg-destructive/20'
-                        : 'bg-muted/20'
+                      : isPending
+                        ? 'bg-muted/20'
+                        : isFailed || (isPast && !hasAmount)
+                          ? 'bg-destructive/20'
+                          : 'bg-primary/20'
                   }`}>
                     {isSuccess ? (
                       <Check className="w-5 h-5 text-green-500" />
                     ) : isManual ? (
                       <User className="w-5 h-5 text-blue-500" />
-                    ) : isPast ? (
-                      hasAmount ? (
-                        <Check className="w-5 h-5 text-primary" />
-                      ) : (
-                        <X className="w-5 h-5 text-destructive" />
-                      )
-                    ) : (
+                    ) : isPending ? (
                       <Clock className="w-5 h-5 text-muted-foreground" />
+                    ) : isFailed || (isPast && !hasAmount) ? (
+                      <X className="w-5 h-5 text-destructive" />
+                    ) : (
+                      <Check className="w-5 h-5 text-primary" />
                     )}
                   </div>
                   <div>

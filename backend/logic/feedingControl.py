@@ -268,10 +268,13 @@ def process_single_feeding(fütterung, current_time):
         fütterung["fed_amount"] = fed_amount
 
         if success:
-            # Füge Fütterung zum Tracking hinzu
+            # Füge Fütterung zum Tracking hinzu (nur wenn tatsächlich etwas gefüttert wurde)
             try:
-                consumption_manager.add_feeding(fed_amount)
-                logging.info(f"[process_single_feeding] Fütterung erfolgreich getrackt: {fed_amount}g")
+                if fed_amount > 0:
+                    consumption_manager.add_feeding(fed_amount)
+                    logging.info(f"[process_single_feeding] Fütterung erfolgreich getrackt: {fed_amount}g")
+                else:
+                    logging.warning(f"[process_single_feeding] Fütterung NICHT getrackt - Gewichtsmessung ergab 0g")
             except Exception as e:
                 logging.warning(f"[process_single_feeding] Fehler beim Tracking: {e}")
             logging.info(f"[process_single_feeding] Fütterung erfolgreich: {message}")

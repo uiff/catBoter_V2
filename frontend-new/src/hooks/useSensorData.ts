@@ -22,7 +22,7 @@ export function useSensorData() {
   const fetchREST = useCallback(async () => {
     try {
       const res = await fetch(`${config.apiBaseUrl}/dashboard`, {
-        signal: AbortSignal.timeout(1000) // 1 Sekunde Timeout
+        signal: AbortSignal.timeout(10000) // 10 Sekunden Timeout (für langsame Sensor-Abfragen)
       })
       const jsonData = await res.json()
 

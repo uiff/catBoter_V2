@@ -1,10 +1,10 @@
-# Multi-Stage Build für optimiertes Backend Image
-FROM python:3.11-slim-bookworm AS base
+# Single-Stage Build für Raspberry Pi mit Netzwerk-Management
+FROM python:3.11-slim-bookworm
 
 # Setze Arbeitsverzeichnis
 WORKDIR /app
 
-# System Dependencies für Hardware-Zugriff
+# System Dependencies für Hardware-Zugriff und Netzwerk-Management
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
@@ -13,27 +13,19 @@ RUN apt-get update && apt-get install -y \
     libgpiod2 \
     i2c-tools \
     curl \
+    iproute2 \
+    wireless-tools \
+    iw \
+    wpasupplicant \
+    dbus \
+    network-manager \
+    sudo \
+    iputils-ping \
     && rm -rf /var/lib/apt/lists/*
 
 # Python Dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-
-# Production Stage
-FROM python:3.11-slim-bookworm
-
-WORKDIR /app
-
-# Kopiere installierte Packages vom Builder
-COPY --from=base /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=base /usr/local/bin /usr/local/bin
-
-# Installiere nur Runtime Dependencies
-RUN apt-get update && apt-get install -y \
-    libgpiod2 \
-    i2c-tools \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
 
 # Kopiere Anwendungscode
 COPY . .
@@ -43,10 +35,6 @@ RUN mkdir -p /app/data /app/feedingPlan /app/logs
 
 # Berechtigungen setzen
 RUN chmod -R 755 /app
-
-# Non-root User für Sicherheit (außer bei GPIO Zugriff)
-# RUN useradd -m -u 1000 catboter && chown -R catboter:catboter /app
-# USER catboter
 
 # Exponiere Port
 EXPOSE 5000

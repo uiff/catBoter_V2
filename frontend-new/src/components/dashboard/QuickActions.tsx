@@ -44,14 +44,13 @@ export function QuickActions({ onManualFeed, onStop, isMotorRunning }: QuickActi
 
         <button
           onClick={onStop}
-          disabled={!isMotorRunning}
           className={cn(
             "glass glass-hover rounded-lg px-6 py-5 transition-all",
             isMotorRunning
               ? "text-red-500 hover:bg-red-500/20 border border-red-500/30"
-              : "text-muted-foreground opacity-50 cursor-not-allowed"
+              : "text-muted-foreground hover:bg-muted/10"
           )}
-          title={isMotorRunning ? "Motor stoppen" : "Motor läuft nicht"}
+          title="Motor stoppen (Notfall-Stop)"
         >
           <Square className="w-5 h-5" />
         </button>

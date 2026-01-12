@@ -180,20 +180,63 @@ export function useFeedingPlans() {
 
   const updatePlan = useCallback(async (planName: string, updatedPlan: Partial<AutoPlan | RandomPlan>) => {
     try {
-      const res = await fetch(`${config.apiBaseUrl}/feeding_plan/${planName}`, {
-        method: 'PATCH',
+      // Backend unterstützt kein PATCH/PUT, daher löschen wir den alten Plan und erstellen einen neuen
+
+      // Prüfe ob der Plan aktuell aktiv ist
+      const allPlans = [...autoPlans, ...randomPlans]
+      const oldPlan = allPlans.find(p => p.planName === planName)
+      const wasActive = oldPlan?.active || false
+      const planType = 'feedingSchedule' in updatedPlan ? 'auto' : 'random'
+
+      // Zuerst: alten Plan löschen
+      const deleteRes = await fetch(`${config.apiBaseUrl}/feeding_plan/${planName}`, {
+        method: 'DELETE',
+      })
+
+      if (!deleteRes.ok) {
+        toast.error('Plan konnte nicht aktualisiert werden')
+        return false
+      }
+
+      // Dann: neuen Plan mit gleichen Daten erstellen
+      const createRes = await fetch(`${config.apiBaseUrl}/feeding_plan`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedPlan),
       })
-      if (res.ok) {
-        await fetchPlans()
-        toast.success('Plan aktualisiert', {
-          description: `"${planName}" wurde erfolgreich geändert`
-        })
-        return true
+
+      if (!createRes.ok) {
+        toast.error('Plan konnte nicht aktualisiert werden')
+        return false
       }
-      toast.error('Plan konnte nicht aktualisiert werden')
-      return false
+
+      // Wenn Plan vorher aktiv war, wieder aktivieren
+      if (wasActive) {
+        const endpoint = planType === 'auto'
+          ? `${config.apiBaseUrl}/feeding_plan/load`
+          : `${config.apiBaseUrl}/random_plan/activate`
+
+        const activateRes = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plan_name: updatedPlan.planName }),
+        })
+
+        if (!activateRes.ok) {
+          toast.warning('Plan aktualisiert, aber konnte nicht aktiviert werden', {
+            description: 'Bitte aktiviere den Plan manuell'
+          })
+        } else {
+          // Warte kurz damit Backend den Status aktualisieren kann
+          await new Promise(resolve => setTimeout(resolve, 500))
+        }
+      }
+
+      await fetchPlans()
+      toast.success('Plan aktualisiert', {
+        description: `"${planName}" wurde erfolgreich geändert${wasActive ? ' und ist weiterhin aktiv' : ''}`
+      })
+      return true
     } catch (err) {
       console.error(err)
       toast.error('Verbindungsfehler', {
@@ -201,7 +244,7 @@ export function useFeedingPlans() {
       })
       return false
     }
-  }, [fetchPlans])
+  }, [fetchPlans, autoPlans, randomPlans])
 
   const activatePlan = useCallback(async (planName: string, type: 'auto' | 'random') => {
     try {
@@ -212,7 +255,7 @@ export function useFeedingPlans() {
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planName }),
+        body: JSON.stringify({ plan_name: planName }),
       })
 
       if (res.ok) {

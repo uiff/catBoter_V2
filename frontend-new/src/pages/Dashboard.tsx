@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Container, Droplets, Weight } from 'lucide-react'
 import { toast } from 'sonner'
 import { MetricCard } from '@/components/dashboard/MetricCard'
@@ -8,23 +8,29 @@ import { RecentFeedings } from '@/components/dashboard/RecentFeedings'
 import { PeriodSelector } from '@/components/dashboard/PeriodSelector'
 import { useSensorData } from '@/hooks/useSensorData'
 import { useConsumptionData } from '@/hooks/useConsumptionData'
-import { formatGrams, formatPercent } from '@/lib/utils'
+import { useTankCalibration } from '@/hooks/useTankCalibration'
+import { formatGrams, formatPercent, distanceToPercent } from '@/lib/utils'
 import { config } from '@/lib/config'
 
 export function Dashboard() {
   const { data, refresh } = useSensorData()
   const { history, today } = useConsumptionData()
+  const tankCalibration = useTankCalibration()
   const [period, setPeriod] = useState<'week' | 'month'>('week')
+  const [lowTankAcknowledged, setLowTankAcknowledged] = useState(false)
+  const lowTankToastId = useRef<string | number | null>(null)
 
   // Keep last valid values to prevent "---" flashing
-  const distance = data?.distance ?? 0
+  const distanceRaw = data?.distance ?? null  // null wenn nicht verfügbar
   const weight = data?.weight ?? 0
   const totalConsumed = data?.total_consumed_today ?? 0
 
-  const getDistanceStatus = (distance: number | null) => {
-    if (!distance) return 'danger'
-    if (distance >= 60) return 'good'
-    if (distance >= 30) return 'warning'
+  // Konvertiere Distanz (cm) zu Füllstand (%) mit Kalibrierung
+  const tankLevel = distanceToPercent(distanceRaw, tankCalibration.min_distance, tankCalibration.max_distance)
+
+  const getDistanceStatus = (percent: number) => {
+    if (percent >= 60) return 'good'
+    if (percent >= 30) return 'warning'
     return 'danger'
   }
 
@@ -95,15 +101,38 @@ export function Dashboard() {
     }
   }
 
-  // Low tank level notification
+  // Low tank level notification with acknowledgment
   useEffect(() => {
-    if (distance > 0 && distance < 20) {
-      toast.warning('Füllstand niedrig!', {
-        description: `Tank ist nur noch bei ${distance}% - Bitte auffüllen`,
-        duration: 10000,
-      })
+    // Reset acknowledgment wenn Tank wieder aufgefüllt wurde (> 30%)
+    if (tankLevel > 30) {
+      if (lowTankAcknowledged) {
+        setLowTankAcknowledged(false)
+      }
+      // Dismiss existing toast wenn Tank wieder ok
+      if (lowTankToastId.current !== null) {
+        toast.dismiss(lowTankToastId.current)
+        lowTankToastId.current = null
+      }
+      return
     }
-  }, [distance])
+
+    // Zeige Warnung nur wenn nicht quittiert, Tank niedrig und noch kein Toast aktiv
+    if (tankLevel > 0 && tankLevel < 20 && !lowTankAcknowledged && lowTankToastId.current === null) {
+      const toastId = toast.warning('Füllstand niedrig!', {
+        description: `Tank ist nur noch bei ${Math.round(tankLevel)}% - Bitte auffüllen`,
+        duration: Infinity, // Bleibt bis quittiert
+        action: {
+          label: 'Quittieren',
+          onClick: () => {
+            setLowTankAcknowledged(true)
+            toast.dismiss(toastId)
+            lowTankToastId.current = null
+          }
+        }
+      })
+      lowTankToastId.current = toastId
+    }
+  }, [tankLevel, lowTankAcknowledged])
 
   return (
     <div className="space-y-6">
@@ -112,8 +141,8 @@ export function Dashboard() {
         <MetricCard
           icon={Container}
           label="Tankfüllstand"
-          value={formatPercent(distance)}
-          status={getDistanceStatus(distance)}
+          value={formatPercent(tankLevel)}
+          status={getDistanceStatus(tankLevel)}
         />
         <MetricCard
           icon={Weight}

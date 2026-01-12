@@ -5,9 +5,6 @@ services:
   nginx:
     image: nginx:alpine
     container_name: catboter_nginx
-    ports:
-      - "80:80"
-      - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
@@ -15,8 +12,7 @@ services:
     depends_on:
       - backend
       - frontend
-    networks:
-      - catboter_network
+    network_mode: host
     restart: unless-stopped
 
   # Backend Service (Flask)
@@ -37,11 +33,15 @@ services:
       # GPIO und Hardware Zugriff für Raspberry Pi
       - /sys:/sys
       - /dev:/dev
+      # D-Bus für NetworkManager Zugriff
+      - /var/run/dbus:/var/run/dbus:ro
+      # Netzwerk Konfiguration
+      - /etc/network/interfaces:/etc/network/interfaces:ro
+      - /etc/wpa_supplicant:/etc/wpa_supplicant:ro
     privileged: true
     devices:
       - /dev/gpiomem:/dev/gpiomem
-    networks:
-      - catboter_network
+    network_mode: host
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
