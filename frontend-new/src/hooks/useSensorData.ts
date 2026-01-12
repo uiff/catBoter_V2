@@ -18,11 +18,12 @@ export function useSensorData() {
   const lastValidDataRef = useRef<SensorData | null>(null)
   const updateTimeoutRef = useRef<number | null>(null)
   const failureCountRef = useRef<number>(0) // Zähle Fehler bevor Offline
+  const pollingIntervalRef = useRef<number | null>(null) // Polling Interval
 
   const fetchREST = useCallback(async () => {
     try {
       const res = await fetch(`${config.apiBaseUrl}/dashboard`, {
-        signal: AbortSignal.timeout(10000) // 10 Sekunden Timeout (für langsame Sensor-Abfragen)
+        signal: AbortSignal.timeout(15000) // 15 Sekunden Timeout (Sensoren brauchen Zeit)
       })
       const jsonData = await res.json()
 
@@ -59,29 +60,32 @@ export function useSensorData() {
 
   useEffect(() => {
     if (!config.wsEnabled) {
+      // Stoppe altes Polling falls vorhanden
+      if (pollingIntervalRef.current) {
+        clearTimeout(pollingIntervalRef.current)
+      }
+
+      // Erste Abfrage sofort
       fetchREST()
 
-      // Dynamisches Polling: schneller wenn Motor läuft, langsamer wenn idle
-      const getRefreshInterval = () => {
-        // Motor läuft = schnelles Polling für Live-Feedback
-        if (data?.motor === 1) {
-          return 500 // 500ms wenn Motor aktiv (0.5s für Live-Updates)
-        }
-        // Motor idle = langsames Polling (Backend-Cache nutzen)
-        return config.refreshInterval // 3000ms normal
-      }
+      // Dynamisches Polling basierend auf Motor-Status
+      const startPolling = () => {
+        const interval = data?.motor === 1 ? 500 : config.refreshInterval
 
-      let intervalId: number
-      const scheduleNext = () => {
-        intervalId = setTimeout(() => {
+        pollingIntervalRef.current = setTimeout(() => {
           fetchREST()
-          scheduleNext()
-        }, getRefreshInterval())
+          startPolling() // Rekursiv fortsetzen
+        }, interval)
       }
 
-      scheduleNext()
+      startPolling()
 
-      return () => clearTimeout(intervalId)
+      return () => {
+        if (pollingIntervalRef.current) {
+          clearTimeout(pollingIntervalRef.current)
+          pollingIntervalRef.current = null
+        }
+      }
     }
 
     const socket = io(config.apiBaseUrl, {
