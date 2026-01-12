@@ -118,16 +118,22 @@ export function Dashboard() {
 
     // Zeige Warnung nur wenn nicht quittiert, Tank niedrig und noch kein Toast aktiv
     if (tankLevel > 0 && tankLevel < 20 && !lowTankAcknowledged && lowTankToastId.current === null) {
-      const toastId = toast.warning('Füllstand niedrig!', {
-        description: `Tank ist nur noch bei ${Math.round(tankLevel)}% - Bitte auffüllen`,
+      const toastId = toast.warning('⚠️ Füllstand kritisch niedrig!', {
+        description: `Tank ist nur noch bei ${Math.round(tankLevel)}% - Bitte baldmöglichst auffüllen`,
         duration: Infinity, // Bleibt bis quittiert
         action: {
-          label: 'Quittieren',
+          label: '✓ Verstanden',
           onClick: () => {
             setLowTankAcknowledged(true)
             toast.dismiss(toastId)
             lowTankToastId.current = null
           }
+        },
+        classNames: {
+          toast: 'border-orange-500/50',
+          title: 'text-orange-500 font-bold',
+          description: 'text-orange-300',
+          actionButton: 'bg-orange-600 hover:bg-orange-700 text-white font-semibold px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-orange-500/50'
         }
       })
       lowTankToastId.current = toastId

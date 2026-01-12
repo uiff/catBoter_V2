@@ -60,8 +60,28 @@ export function useSensorData() {
   useEffect(() => {
     if (!config.wsEnabled) {
       fetchREST()
-      const interval = setInterval(fetchREST, config.refreshInterval)
-      return () => clearInterval(interval)
+
+      // Dynamisches Polling: schneller wenn Motor läuft, langsamer wenn idle
+      const getRefreshInterval = () => {
+        // Motor läuft = schnelles Polling für Live-Feedback
+        if (data?.motor === 1) {
+          return 500 // 500ms wenn Motor aktiv (0.5s für Live-Updates)
+        }
+        // Motor idle = langsames Polling (Backend-Cache nutzen)
+        return config.refreshInterval // 3000ms normal
+      }
+
+      let intervalId: number
+      const scheduleNext = () => {
+        intervalId = setTimeout(() => {
+          fetchREST()
+          scheduleNext()
+        }, getRefreshInterval())
+      }
+
+      scheduleNext()
+
+      return () => clearTimeout(intervalId)
     }
 
     const socket = io(config.apiBaseUrl, {
@@ -138,7 +158,7 @@ export function useSensorData() {
       }
       socket.disconnect()
     }
-  }, [fetchREST])
+  }, [fetchREST, data?.motor])
 
   const refresh = useCallback(() => {
     if (isConnected && socketRef.current) {

@@ -20,6 +20,29 @@ Vollautomatisches Fütterungssystem für Haustiere auf Raspberry Pi Basis mit:
 
 ## 🚀 Installation (5 Minuten)
 
+### Vorbereitung
+
+**1. Raspberry Pi OS installieren:**
+- **Raspberry Pi Imager** herunterladen: https://www.raspberrypi.com/software/
+- **OS:** Raspberry Pi OS Lite (64-bit) - **Empfohlen** (ohne Desktop spart Ressourcen)
+  - Alternative: Raspberry Pi OS with Desktop (mehr Speicher benötigt)
+- **SD-Karte:** Mindestens 16 GB (32 GB empfohlen)
+- **SSH aktivieren** im Imager (Settings → Enable SSH)
+- **WiFi konfigurieren** im Imager (optional, kann später gemacht werden)
+
+**2. I2C aktivieren (für VL53L0X Sensor):**
+```bash
+sudo raspi-config
+# Interface Options → I2C → Enable → Reboot
+```
+
+**3. GPIO-Zugriff sicherstellen:**
+```bash
+# User zur gpio-Gruppe hinzufügen
+sudo usermod -a -G gpio $USER
+# Neuanmeldung erforderlich
+```
+
 ### Automatisches Setup (Empfohlen)
 
 ```bash
@@ -98,18 +121,114 @@ IP-Adresse herausfinden: `hostname -I`
 
 ## 🔧 Hardware-Anforderungen
 
+### Raspberry Pi
 **Minimum:**
-- Raspberry Pi 3B oder neuer
-- 1 GB RAM (2 GB empfohlen)
-- 8 GB SD-Karte (16 GB empfohlen)
-- HX711 Load Cell Amplifier (Gewichtssensor)
-- VL53L0X ToF Sensor (Distanzmessung)
-- Servo/Schrittmotor für Futterspender
+- **Raspberry Pi 4 Model B** (empfohlen) oder Raspberry Pi 3B+
+- **2 GB RAM** minimum (4 GB empfohlen für flüssige Performance)
+- **16 GB microSD-Karte** minimum (**32 GB empfohlen**)
+  - Class 10 oder besser für schnelle I/O-Operationen
+  - SanDisk oder Samsung empfohlen
+- **Stromversorgung:** 5V/3A USB-C (Pi 4) oder 5V/2.5A Micro-USB (Pi 3)
 
 **Getestet auf:**
-- ✅ Raspberry Pi 4 Model B (4 GB)
-- ✅ Raspberry Pi Zero 2 W
-- ✅ Raspberry Pi 3 Model B+
+- ✅ Raspberry Pi 4 Model B (4 GB) - **Optimal**
+- ✅ Raspberry Pi 3 Model B+ - Funktioniert, aber langsamer
+- ⚠️ Raspberry Pi Zero 2 W - Möglich, aber sehr langsam beim Docker-Build
+
+### Sensoren & Aktoren
+
+#### 1. **Gewichtssensor (HX711 Load Cell Amplifier)**
+- **Sensor:** HX711 mit 1-5kg Load Cell
+- **GPIO-Pins:**
+  - **DT (Data):** GPIO 5
+  - **SCK (Clock):** GPIO 6
+  - **VCC:** 5V
+  - **GND:** GND
+
+#### 2. **Füllstandssensor (VL53L0X Time-of-Flight)**
+- **Sensor:** VL53L0X ToF Distanzsensor (0-200cm)
+- **Anschluss:** I2C
+  - **SDA:** GPIO 2 (Pin 3)
+  - **SCL:** GPIO 3 (Pin 5)
+  - **VCC:** 3.3V (nicht 5V!)
+  - **GND:** GND
+- **I2C aktivieren:**
+  ```bash
+  sudo raspi-config
+  # Interface Options → I2C → Enable
+  ```
+
+#### 3. **Motor (Futterspender-Antrieb)**
+- **Typ:** Schrittmotor oder Servo
+- **GPIO-Pins:**
+  - **IN1/IN2/IN3/IN4:** GPIO 17, 18, 27, 22 (für Schrittmotor)
+  - Oder **PWM-Pin** GPIO 18 (für Servo)
+  - **VCC:** Externe 5V/12V Stromversorgung (je nach Motor)
+  - **GND:** Gemeinsames GND mit Raspberry Pi
+
+> **⚠️ Wichtig:** Motor benötigt externe Stromversorgung! Niemals direkt vom Pi mit Strom versorgen.
+
+### Optionale Hardware
+- **Externe WiFi-Antenne** (für besseren Empfang)
+- **Gehäuse mit Lüfter** (Pi 4 wird warm bei Docker)
+- **Backup-Powerbank** (für unterbrechungsfreien Betrieb)
+
+### Verkabelungsdiagramm
+
+```
+Raspberry Pi 4 GPIO Layout
+┌─────────────────────────────────┐
+│  3.3V  (1) (2)  5V              │  ← Stromversorgung
+│  SDA   (3) (4)  5V              │  ← I2C für VL53L0X
+│  SCL   (5) (6)  GND             │
+│  GPIO4 (7) (8)  GPIO14          │
+│  GND   (9) (10) GPIO15          │
+│  GPIO17(11)(12) GPIO18          │  ← Motor/Servo
+│  GPIO27(13)(14) GND             │
+│  GPIO22(15)(16) GPIO23          │
+│  3.3V  (17)(18) GPIO24          │
+│  GPIO10(19)(20) GND             │
+│  GPIO9 (21)(22) GPIO25          │
+│  GPIO11(23)(24) GPIO8           │
+│  GND   (25)(26) GPIO7           │
+│  GPIO5 (29)(30) GND             │  ← HX711 DT
+│  GPIO6 (31)(32) GPIO12          │  ← HX711 SCK
+│  ...                            │
+└─────────────────────────────────┘
+
+Anschlussplan:
+┌────────────────────────────────────────────────┐
+│ HX711 (Gewichtssensor)                         │
+│  VCC  → Pin 2  (5V)                           │
+│  GND  → Pin 6  (GND)                          │
+│  DT   → Pin 29 (GPIO 5)                       │
+│  SCK  → Pin 31 (GPIO 6)                       │
+└────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────┐
+│ VL53L0X (Distanzsensor)                        │
+│  VCC  → Pin 1  (3.3V) ⚠️ NICHT 5V!            │
+│  GND  → Pin 9  (GND)                          │
+│  SDA  → Pin 3  (GPIO 2 / SDA)                 │
+│  SCL  → Pin 5  (GPIO 3 / SCL)                 │
+└────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────┐
+│ Schrittmotor (über Treiber-Board)              │
+│  IN1  → GPIO 17                               │
+│  IN2  → GPIO 18                               │
+│  IN3  → GPIO 27                               │
+│  IN4  → GPIO 22                               │
+│  VCC  → Externe 5V/12V Stromquelle            │
+│  GND  → Gemeinsam mit Pi GND                  │
+└────────────────────────────────────────────────┘
+```
+
+> **⚠️ Sicherheitshinweise:**
+> - VL53L0X nur an 3.3V anschließen! 5V zerstört den Sensor
+> - Motor niemals direkt am Pi anschließen - nutze Treiber-Board
+> - Gemeinsames GND für alle Komponenten erforderlich
+> - Externe Stromversorgung für Motor zwingend notwendig
 
 ---
 
