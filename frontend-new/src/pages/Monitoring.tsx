@@ -47,14 +47,14 @@ export function Monitoring() {
       setLoading(true)
 
       // Fetch daily data (last 7 days)
-      const dailyRes = await fetch(`${config.apiBaseUrl}/api/consumption/daily?days=7`)
+      const dailyRes = await fetch(`${config.apiBaseUrl}/consumption/daily?days=7`)
       if (dailyRes.ok) {
         const data = await dailyRes.json()
         setDailyData(data)
       }
 
       // Fetch today's detailed feedings
-      const todayRes = await fetch(`${config.apiBaseUrl}/api/consumption/today_detailed`)
+      const todayRes = await fetch(`${config.apiBaseUrl}/consumption/today_detailed`)
       if (todayRes.ok) {
         const data = await todayRes.json()
         setTodayFeedings(data.feedings || [])

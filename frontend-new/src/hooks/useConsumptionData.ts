@@ -54,10 +54,10 @@ export function useConsumptionData() {
 
       // Fetch all consumption data in parallel
       const [dailyRes, weeklyRes, monthlyRes, yearlyRes] = await Promise.all([
-        fetch(`${config.apiBaseUrl}/api/consumption/daily`),
-        fetch(`${config.apiBaseUrl}/api/consumption/weekly`),
-        fetch(`${config.apiBaseUrl}/api/consumption/monthly`),
-        fetch(`${config.apiBaseUrl}/api/consumption/yearly`)
+        fetch(`${config.apiBaseUrl}/consumption/daily`),
+        fetch(`${config.apiBaseUrl}/consumption/weekly`),
+        fetch(`${config.apiBaseUrl}/consumption/monthly`),
+        fetch(`${config.apiBaseUrl}/consumption/yearly`)
       ])
 
       if (!dailyRes.ok || !weeklyRes.ok || !monthlyRes.ok || !yearlyRes.ok) {
@@ -83,7 +83,7 @@ export function useConsumptionData() {
 
   const fetchToday = useCallback(async () => {
     try {
-      const res = await fetch(`${config.apiBaseUrl}/api/consumption/today_detailed`)
+      const res = await fetch(`${config.apiBaseUrl}/consumption/today_detailed`)
       if (!res.ok) {
         throw new Error('Failed to fetch today\'s data')
       }

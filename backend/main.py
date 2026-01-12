@@ -607,7 +607,7 @@ app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
 
 # PERFORMANCE-OPTIMIERTE API ENDPOINTS
 
-@app.route('/api/swagger.yaml')
+@app.route('/swagger.yaml')
 def swagger_spec():
     return send_from_directory('api', 'swagger.yaml')
 
@@ -1806,13 +1806,13 @@ def influx_data(measurement):
         return jsonify({'error': str(e)}), 500
 
 # CONSUMPTION HISTORY ENDPOINTS
-@app.route('/api/consumption/daily')
+@app.route('/consumption/daily')
 def get_daily_consumption():
     """Tägliche Verbrauchsdaten"""
     try:
         if consumption_manager is None:
             return jsonify({'error': 'Consumption Manager nicht verfügbar'}), 500
-        
+
         days = request.args.get('days', default=30, type=int)
         data = consumption_manager.get_daily(days)
         return jsonify(data)
@@ -1820,13 +1820,13 @@ def get_daily_consumption():
         logging.error(f"Daily consumption error: {e}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/consumption/weekly')
+@app.route('/consumption/weekly')
 def get_weekly_consumption():
     """Wöchentliche Verbrauchsdaten"""
     try:
         if consumption_manager is None:
             return jsonify({'error': 'Consumption Manager nicht verfügbar'}), 500
-        
+
         weeks = request.args.get('weeks', default=12, type=int)
         data = consumption_manager.get_weekly(weeks)
         return jsonify(data)
@@ -1834,13 +1834,13 @@ def get_weekly_consumption():
         logging.error(f"Weekly consumption error: {e}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/consumption/monthly')
+@app.route('/consumption/monthly')
 def get_monthly_consumption():
     """Monatliche Verbrauchsdaten"""
     try:
         if consumption_manager is None:
             return jsonify({'error': 'Consumption Manager nicht verfügbar'}), 500
-        
+
         months = request.args.get('months', default=6, type=int)
         data = consumption_manager.get_monthly(months)
         return jsonify(data)
@@ -1848,46 +1848,46 @@ def get_monthly_consumption():
         logging.error(f"Monthly consumption error: {e}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/consumption/yearly')
+@app.route('/consumption/yearly')
 def get_yearly_consumption():
     """Jährliche Verbrauchsdaten"""
     try:
         if consumption_manager is None:
             return jsonify({'error': 'Consumption Manager nicht verfügbar'}), 500
-        
+
         data = consumption_manager.get_yearly()
         return jsonify(data)
     except Exception as e:
         logging.error(f"Yearly consumption error: {e}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/consumption/stats')
+@app.route('/consumption/stats')
 def get_consumption_stats():
     """Verbrauchsstatistiken"""
     try:
         if consumption_manager is None:
             return jsonify({'error': 'Consumption Manager nicht verfügbar'}), 500
-        
+
         stats = consumption_manager.get_stats()
         return jsonify(stats)
     except Exception as e:
         logging.error(f"Consumption stats error: {e}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/consumption/today')
+@app.route('/consumption/today')
 def get_today_consumption():
     """Heutiger Verbrauch"""
     try:
         if consumption_manager is None:
             return jsonify({'error': 'Consumption Manager nicht verfügbar'}), 500
-        
+
         total = consumption_manager.get_today_total()
         return jsonify({'total': total})
     except Exception as e:
         logging.error(f"Today consumption error: {e}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/consumption/today_detailed')
+@app.route('/consumption/today_detailed')
 def get_today_detailed():
     """Detaillierte heutige Fütterungen mit Plan und durchgeführten Fütterungen"""
     try:
