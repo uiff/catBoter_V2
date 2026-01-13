@@ -1,31 +1,30 @@
-# Single-Stage Build für Raspberry Pi mit Netzwerk-Management
+# Optimized Single-Stage Build für Raspberry Pi
 FROM python:3.11-slim-bookworm
 
 # Setze Arbeitsverzeichnis
 WORKDIR /app
 
-# System Dependencies für Hardware-Zugriff und Netzwerk-Management
-RUN apt-get update && apt-get install -y \
+# Build und Runtime Dependencies in einem Schritt (optimiert für Raspberry Pi)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Build Dependencies (werden später entfernt)
     gcc \
     g++ \
-    make \
     git \
+    # Runtime Dependencies (bleiben im Image)
     libgpiod2 \
     i2c-tools \
     curl \
-    iproute2 \
-    wireless-tools \
-    iw \
-    wpasupplicant \
-    dbus \
-    network-manager \
-    sudo \
-    iputils-ping \
     && rm -rf /var/lib/apt/lists/*
 
-# Python Dependencies
+# Python Dependencies installieren
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Build Dependencies entfernen um Image zu verkleinern
+RUN apt-get purge -y gcc g++ git \
+    && apt-get autoremove -y \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Kopiere Anwendungscode
 COPY . .

@@ -16,21 +16,21 @@ export function formatPercent(percent: number | null | undefined): string {
 }
 
 /**
- * Konvertiert Ultraschall-Distanz (cm) zu Tankfüllstand (%)
- * @param distanceCm Gemessene Distanz in cm
- * @param minDistance Minimale Distanz bei vollem Tank (default: 3cm)
- * @param maxDistance Maximale Distanz bei leerem Tank (default: 23cm)
+ * Konvertiert Ultraschall-Distanz (mm vom Backend) zu Tankfüllstand (%)
+ * @param distanceMm Gemessene Distanz in mm (vom Backend)
+ * @param minDistance Minimale Distanz bei vollem Tank in mm (default: 30mm = 3cm)
+ * @param maxDistance Maximale Distanz bei leerem Tank in mm (default: 230mm = 23cm)
  * @returns Füllstand in Prozent (0-100)
  */
 export function distanceToPercent(
-  distanceCm: number | null | undefined,
-  minDistance: number = 3,
-  maxDistance: number = 23
+  distanceMm: number | null | undefined,
+  minDistance: number = 30,
+  maxDistance: number = 230
 ): number {
-  if (distanceCm === null || distanceCm === undefined) return 0
+  if (distanceMm === null || distanceMm === undefined) return 0
 
-  // Invertierte Berechnung: Je kleiner die Distanz, desto voller der Tank
-  const clampedDistance = Math.max(minDistance, Math.min(maxDistance, distanceCm))
+  // Backend liefert mm - Invertierte Berechnung: Je kleiner die Distanz, desto voller der Tank
+  const clampedDistance = Math.max(minDistance, Math.min(maxDistance, distanceMm))
   const percent = 100 - ((clampedDistance - minDistance) / (maxDistance - minDistance)) * 100
 
   return Math.max(0, Math.min(100, percent))

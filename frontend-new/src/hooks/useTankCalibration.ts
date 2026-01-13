@@ -8,8 +8,8 @@ interface TankCalibration {
 
 export function useTankCalibration() {
   const [calibration, setCalibration] = useState<TankCalibration>({
-    min_distance: 3,
-    max_distance: 23
+    min_distance: 30,  // Backend liefert mm, nicht cm!
+    max_distance: 230   // Backend liefert mm, nicht cm!
   })
 
   useEffect(() => {

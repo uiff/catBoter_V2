@@ -25,7 +25,7 @@ export function Dashboard() {
   const weight = data?.weight ?? 0
   const totalConsumed = data?.total_consumed_today ?? 0
 
-  // Konvertiere Distanz (cm) zu Füllstand (%) mit Kalibrierung
+  // Konvertiere Distanz (mm) zu Füllstand (%) mit Kalibrierung
   const tankLevel = distanceToPercent(distanceRaw, tankCalibration.min_distance, tankCalibration.max_distance)
 
   const getDistanceStatus = (percent: number) => {

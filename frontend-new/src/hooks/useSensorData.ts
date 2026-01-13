@@ -88,7 +88,8 @@ export function useSensorData() {
       }
     }
 
-    const socket = io(config.apiBaseUrl, {
+    // Socket.IO läuft auf Root-Path, nicht unter /api
+    const socket = io('/', {
       transports: ['websocket', 'polling'],
       reconnection: true,
     })
@@ -162,7 +163,8 @@ export function useSensorData() {
       }
       socket.disconnect()
     }
-  }, [fetchREST, data?.motor])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])  // Nur einmal beim Mount - sonst Infinite Loop!
 
   const refresh = useCallback(() => {
     if (isConnected && socketRef.current) {

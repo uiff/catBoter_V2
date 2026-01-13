@@ -45,10 +45,10 @@ export function QuickActions({ onManualFeed, onStop, isMotorRunning }: QuickActi
         <button
           onClick={onStop}
           className={cn(
-            "glass glass-hover rounded-lg px-6 py-5 transition-all",
+            "rounded-lg px-6 py-5 transition-all font-semibold",
             isMotorRunning
-              ? "text-red-500 hover:bg-red-500/20 border border-red-500/30"
-              : "text-muted-foreground hover:bg-muted/10"
+              ? "bg-red-600 hover:bg-red-700 text-white border-2 border-red-400 shadow-lg shadow-red-500/50"
+              : "glass glass-hover text-muted-foreground hover:bg-muted/10"
           )}
           title="Motor stoppen (Notfall-Stop)"
         >

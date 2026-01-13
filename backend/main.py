@@ -1,3 +1,7 @@
+# WICHTIG: eventlet monkey patching MUSS vor allen anderen Imports sein!
+import eventlet
+eventlet.monkey_patch()
+
 import os
 import sys
 import json
@@ -9,6 +13,7 @@ from threading import Thread, Lock
 from flask import Flask, jsonify, request, redirect, send_from_directory
 from flask_cors import CORS
 from flask_swagger_ui import get_swaggerui_blueprint
+from flask_socketio import SocketIO, emit
 import logging
 from pathlib import Path
 
@@ -219,6 +224,54 @@ except Exception as e:
 # Flask App
 app = Flask(__name__)
 CORS(app)
+
+# Socket.IO für WebSocket-Unterstützung
+# async_mode='eventlet' für Production WebSocket Support
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet', logger=True, engineio_logger=True)
+
+# Socket.IO Event-Handler
+@socketio.on('connect')
+def handle_connect():
+    logging.info(f"WebSocket: Client verbunden - {request.sid}")
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    logging.info(f"WebSocket: Client getrennt - {request.sid}")
+
+@socketio.on('request_update')
+def handle_request_update():
+    """Client fordert sofortiges Update an"""
+    try:
+        sensor_data = {
+            'weight': get_cached_weight(),
+            'distance': get_cached_distance(),
+            'motor': 0,
+            'total_consumed_today': 0,
+            'timestamp': datetime.datetime.now().isoformat()
+        }
+
+        # Motor-Status
+        motor = hardware.get_motor()
+        if motor is not None:
+            try:
+                if hasattr(motor, 'status') and callable(getattr(motor, 'status')):
+                    sensor_data['motor'] = 1 if motor.status() else 0
+                elif hasattr(motor, 'is_running') and callable(getattr(motor, 'is_running')):
+                    sensor_data['motor'] = 1 if motor.is_running() else 0
+            except:
+                pass
+
+        # Heute gefüttert
+        if consumption_manager:
+            try:
+                sensor_data['total_consumed_today'] = consumption_manager.get_today_total()
+            except:
+                pass
+
+        emit('sensor_update', sensor_data)
+        logging.debug(f"WebSocket: Manual update sent to {request.sid}")
+    except Exception as e:
+        logging.error(f"WebSocket request_update error: {e}")
 
 # Hintergrund-Thread für automatische Fütterungsprüfung
 def feeding_status_scheduler():
@@ -662,10 +715,10 @@ def get_tank_calibration():
             with open(calibration_file, 'r') as f:
                 calibration = json.load(f)
         else:
-            # Default Werte
+            # Default Werte in MILLIMETER (Sensor liefert mm!)
             calibration = {
-                'min_distance': 3,   # Voller Tank
-                'max_distance': 23   # Leerer Tank
+                'min_distance': 30,   # Voller Tank (3cm = 30mm)
+                'max_distance': 230   # Leerer Tank (23cm = 230mm)
             }
 
         return jsonify(calibration)
@@ -689,8 +742,8 @@ def set_tank_calibration():
         if min_dist >= max_dist:
             return jsonify({'error': 'min_distance muss kleiner als max_distance sein'}), 400
 
-        if min_dist < 0 or max_dist > 100:
-            return jsonify({'error': 'Ungültige Distanzwerte (0-100cm)'}), 400
+        if min_dist < 0 or max_dist > 1000:
+            return jsonify({'error': 'Ungültige Distanzwerte (0-1000mm)'}), 400
 
         calibration = {
             'min_distance': min_dist,
@@ -2679,25 +2732,101 @@ def disable_wifi_fallback_ap():
         logging.error(f"WiFi Fallback Disable AP Error: {e}")
         return jsonify({'error': str(e)}), 500
 
+# BACKGROUND SENSOR POLLING THREAD mit WebSocket Push
+# Dieser Thread liest kontinuierlich Sensoren aus und pushed Updates via WebSocket
+sensor_polling_active = True
+
+def background_sensor_polling():
+    """Background-Thread der kontinuierlich Sensoren ausliest und via WebSocket pushed"""
+    logging.info("🔄 Background Sensor Polling mit WebSocket Push gestartet")
+
+    while sensor_polling_active:
+        try:
+            sensor_data_changed = False
+            sensor_data = {
+                'weight': None,
+                'distance': None,
+                'motor': 0,
+                'total_consumed_today': 0,
+                'timestamp': datetime.datetime.now().isoformat()
+            }
+
+            # Weight-Sensor lesen
+            try:
+                weight = get_cached_weight()
+                sensor_data['weight'] = weight
+                if weight is not None:
+                    sensor_data_changed = True
+                    logging.debug(f"Background: Weight = {weight}")
+            except Exception as e:
+                logging.debug(f"Background: Weight read failed: {e}")
+
+            # Distance-Sensor lesen
+            try:
+                distance = get_cached_distance()
+                sensor_data['distance'] = distance
+                if distance is not None:
+                    sensor_data_changed = True
+                    logging.debug(f"Background: Distance = {distance}")
+            except Exception as e:
+                logging.debug(f"Background: Distance read failed: {e}")
+
+            # Motor-Status
+            motor = hardware.get_motor()
+            if motor is not None:
+                try:
+                    if hasattr(motor, 'status') and callable(getattr(motor, 'status')):
+                        sensor_data['motor'] = 1 if motor.status() else 0
+                    elif hasattr(motor, 'is_running') and callable(getattr(motor, 'is_running')):
+                        sensor_data['motor'] = 1 if motor.is_running() else 0
+                except:
+                    pass
+
+            # Heute gefüttert
+            if consumption_manager:
+                try:
+                    sensor_data['total_consumed_today'] = consumption_manager.get_today_total()
+                except:
+                    pass
+
+            # Push via WebSocket an alle verbundenen Clients
+            if sensor_data_changed or sensor_data['motor'] == 1:
+                try:
+                    socketio.emit('sensor_update', sensor_data, namespace='/')
+                    logging.debug(f"WebSocket: Sensor data pushed to clients")
+                except Exception as e:
+                    logging.debug(f"WebSocket push failed: {e}")
+
+            # Warte 5 Sekunden vor nächstem Durchlauf (eventlet.sleep statt time.sleep!)
+            eventlet.sleep(5)
+
+        except Exception as e:
+            logging.error(f"Background polling error: {e}")
+            eventlet.sleep(5)
+
+    logging.info("🛑 Background Sensor Polling gestoppt")
+
 # SERVER START
 if __name__ == '__main__':
     try:
         # Cache warmup
         Timer(2.0, warmup_cache).start()
-        
+
         # Startup info
-        logging.info("🚀 Starte CatBot V3 API Server mit erweiterten Performance-Optimierungen...")
-        logging.info("💡 Für noch bessere Performance installiere gunicorn: pip3 install gunicorn")
-        logging.info("📝 Dann starte mit: gunicorn -w 2 -b 0.0.0.0:5000 main:app")
-        logging.info("🔧 Verwende Flask Development Server mit Threading...")
-        
-        # Start Flask Server mit optimierten Einstellungen
-        app.run(
+        logging.info("🚀 Starte CatBot V3 API Server mit WebSocket (eventlet)...")
+        logging.info("🔧 Nutze eventlet für Production-ready WebSocket Support")
+
+        # Starte Background Sensor Polling mit eventlet (nicht Threading!)
+        eventlet.spawn(background_sensor_polling)
+        logging.info("✅ Background Sensor Polling mit eventlet gestartet")
+
+        # Start Flask Server mit Socket.IO (eventlet übernimmt den Server)
+        socketio.run(
+            app,
             host='0.0.0.0',
             port=5000,
-            debug=False,  # Performance
-            threaded=True,  # Parallel requests
-            use_reloader=False  # Stabilität
+            debug=False,
+            use_reloader=False
         )
         
     except KeyboardInterrupt:

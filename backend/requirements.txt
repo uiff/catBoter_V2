@@ -4,6 +4,9 @@ Flask
 flask-cors
 flask-swagger-ui
 flask-restful
+flask-socketio
+python-socketio
+eventlet
 psutil
 netifaces
 wifi
