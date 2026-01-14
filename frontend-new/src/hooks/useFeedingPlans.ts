@@ -12,15 +12,18 @@ export function useFeedingPlans() {
   const fetchPlans = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await fetch(`${config.apiBaseUrl}/feeding_plan`)
-      const plans = await res.json()
 
-      // Separate auto plans (have feedingSchedule) from random plans (have startTime/endTime)
-      const autoPlansList = plans.filter((p: any) => 'feedingSchedule' in p)
-      const randomPlansList = plans.filter((p: any) => 'startTime' in p && 'endTime' in p)
+      // Fetch both auto plans and random plans separately
+      const [autoRes, randomRes] = await Promise.all([
+        fetch(`${config.apiBaseUrl}/feeding_plan`),
+        fetch(`${config.apiBaseUrl}/random_plans`)
+      ])
 
-      setAutoPlans(autoPlansList)
-      setRandomPlans(randomPlansList)
+      const autoPlansData = await autoRes.json()
+      const randomPlansData = await randomRes.json()
+
+      setAutoPlans(Array.isArray(autoPlansData) ? autoPlansData : [])
+      setRandomPlans(Array.isArray(randomPlansData) ? randomPlansData : [])
       setError(null)
     } catch (err) {
       setError('Fehler beim Laden der Pläne')
@@ -106,7 +109,7 @@ export function useFeedingPlans() {
 
   const createRandomPlan = useCallback(async (plan: Omit<RandomPlan, 'active'>) => {
     try {
-      const res = await fetch(`${config.apiBaseUrl}/feeding_plan`, {
+      const res = await fetch(`${config.apiBaseUrl}/random_plan`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...plan, active: false }),
@@ -129,9 +132,13 @@ export function useFeedingPlans() {
     }
   }, [fetchPlans])
 
-  const deletePlan = useCallback(async (planName: string, _type: 'auto' | 'random') => {
+  const deletePlan = useCallback(async (planName: string, type: 'auto' | 'random') => {
     try {
-      const res = await fetch(`${config.apiBaseUrl}/feeding_plan/${planName}`, {
+      const endpoint = type === 'auto'
+        ? `${config.apiBaseUrl}/feeding_plan/${planName}`
+        : `${config.apiBaseUrl}/random_plan/${planName}`
+
+      const res = await fetch(endpoint, {
         method: 'DELETE',
       })
       if (res.ok) {

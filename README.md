@@ -361,6 +361,8 @@ MIT License - Siehe [LICENSE](LICENSE) für Details
 - ✅ **Custom Icon** - Neues CatBoter-Logo mit Katze und Napf
 - ✅ **Tankfüllstand-Kalibrierung** - Einfache visuelle Kalibrierung (leer/voll)
 - ✅ **Bessere Sensor-Anzeige** - Korrekte Null-Wert-Behandlung für offline Sensoren
+- ✅ **WiFi-Status-Anzeige** - Zeigt korrekt SSID und IP-Adresse in den Einstellungen
+- ✅ **Kein PWA-Installationspopup** - Web-App läuft optimal im Browser
 
 ### Installation
 - ✅ **Automatischer Setup-Wizard** - Vollständige Installation in 5 Minuten

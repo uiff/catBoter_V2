@@ -1,6 +1,10 @@
 # Optimized Single-Stage Build für Raspberry Pi
 FROM python:3.11-slim-bookworm
 
+# Setze Zeitzone auf Europe/Zurich
+ENV TZ=Europe/Zurich
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
 # Setze Arbeitsverzeichnis
 WORKDIR /app
 
@@ -14,6 +18,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgpiod2 \
     i2c-tools \
     curl \
+    # Network Tools für WiFi-Status
+    wireless-tools \
+    iproute2 \
+    wpasupplicant \
     && rm -rf /var/lib/apt/lists/*
 
 # Python Dependencies installieren

@@ -54,7 +54,11 @@ export function RecentFeedings({ feedings, date }: RecentFeedingsProps) {
                 className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
                   isSuccess
                     ? 'bg-green-500/10 border-green-500/30'
-                    : 'bg-background/30 border-border/50'
+                    : isPending
+                      ? 'bg-blue-500/10 border-blue-500/30'
+                      : isFailed || (isPast && !hasAmount)
+                        ? 'bg-red-500/10 border-red-500/30'
+                        : 'bg-background/30 border-border/50'
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -62,9 +66,9 @@ export function RecentFeedings({ feedings, date }: RecentFeedingsProps) {
                     isSuccess
                       ? 'bg-green-500/20'
                       : isPending
-                        ? 'bg-muted/20'
+                        ? 'bg-blue-500/20'
                         : isFailed || (isPast && !hasAmount)
-                          ? 'bg-destructive/20'
+                          ? 'bg-red-500/20'
                           : 'bg-primary/20'
                   }`}>
                     {isSuccess ? (
@@ -72,9 +76,9 @@ export function RecentFeedings({ feedings, date }: RecentFeedingsProps) {
                     ) : isManual ? (
                       <User className="w-5 h-5 text-blue-500" />
                     ) : isPending ? (
-                      <Clock className="w-5 h-5 text-muted-foreground" />
+                      <Clock className="w-5 h-5 text-blue-500" />
                     ) : isFailed || (isPast && !hasAmount) ? (
-                      <X className="w-5 h-5 text-destructive" />
+                      <X className="w-5 h-5 text-red-500" />
                     ) : (
                       <Check className="w-5 h-5 text-primary" />
                     )}
@@ -97,11 +101,11 @@ export function RecentFeedings({ feedings, date }: RecentFeedingsProps) {
                 <div className={`text-right ${
                   isSuccess
                     ? 'text-green-500'
-                    : isPast
-                      ? hasAmount
-                        ? 'text-primary'
+                    : isPending
+                      ? 'text-blue-500'
+                      : isFailed || (isPast && !hasAmount)
+                        ? 'text-red-500'
                         : 'text-muted-foreground'
-                      : 'text-muted-foreground'
                 }`}>
                   <p className="font-semibold">
                     {formatGrams(feeding.amount)}

@@ -27,7 +27,7 @@ import time as time_module
 class SimpleCache:
     """Einfacher Cache mit TTL ohne externe Dependencies"""
     def __init__(self):
-        self.weight_cache = {'data': None, 'timestamp': 0, 'ttl': 10}  # 10s - Gewicht ändert sich langsam
+        self.weight_cache = {'data': None, 'timestamp': 0, 'ttl': 0.5}  # 0.5s - Schnelles Update für manuelle Fütterung
         self.distance_cache = {'data': None, 'timestamp': 0, 'ttl': 10}  # 10s - Füllstand ändert sich langsam
         self.motor_cache = {'data': None, 'timestamp': 0, 'ttl': 1}  # 1s - Motor-Status muss schnell sein
         self.system_cache = {'data': None, 'timestamp': 0, 'ttl': 30}  # 30s - System-Info ändert sich selten

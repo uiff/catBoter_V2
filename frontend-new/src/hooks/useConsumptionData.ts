@@ -38,6 +38,9 @@ interface TodayData {
   feedings: Array<{
     time: string
     amount: number
+    type?: 'auto' | 'manual'
+    status?: boolean | null
+    planned_amount?: number
   }>
   total: number
 }

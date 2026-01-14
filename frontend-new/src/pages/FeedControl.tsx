@@ -68,12 +68,12 @@ export function FeedControl() {
         name: p.planName,
         type: 'random' as const,
         active: p.active,
-        days: p.selectedDays,
-        startTime: p.startTime,
-        endTime: p.endTime,
-        feedingsPerDay: p.feedingsPerDay,
-        weightPerFeeding: p.weightPerFeeding,
-        minIntervalMinutes: p.minIntervalMinutes
+        days: p.selectedDays || [],
+        startTime: p.timeRanges[0]?.start || '06:00',
+        endTime: p.timeRanges[0]?.end || '22:00',
+        feedingsPerDay: p.maxFeedings,
+        weightPerFeeding: p.maxAmount,
+        minIntervalMinutes: undefined
       }))
     ]
     setAllPlans(combined)
@@ -216,12 +216,12 @@ export function FeedControl() {
   const handleSaveRandomPlan = async () => {
     const planData = {
       planName: randomPlanName,
-      startTime,
-      endTime,
-      feedingsPerDay: randomFeedingsPerDay,
-      weightPerFeeding: parseFloat(weightPerFeeding),
-      selectedDays: randomSelectedDays,
-      minIntervalMinutes: parseInt(minInterval)
+      minFeedings: randomFeedingsPerDay,
+      maxFeedings: randomFeedingsPerDay,
+      minAmount: parseFloat(weightPerFeeding),
+      maxAmount: parseFloat(weightPerFeeding),
+      timeRanges: [{ start: startTime, end: endTime }],
+      selectedDays: randomSelectedDays
     }
 
     const success = editingPlan

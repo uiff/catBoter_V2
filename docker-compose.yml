@@ -55,10 +55,10 @@ services:
     build:
       context: ./frontend-new
       dockerfile: Dockerfile
-      target: build
+      target: production
     container_name: catboter_frontend
     volumes:
-      - frontend_dist:/app/dist
+      - frontend_dist:/usr/share/nginx/html
     networks:
       - catboter_network
 

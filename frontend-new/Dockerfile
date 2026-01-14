@@ -21,6 +21,10 @@ FROM nginx:alpine AS production
 # Copy built files from build stage
 COPY --from=build /app/dist /usr/share/nginx/html
 
+# Fix permissions for all files
+RUN chmod -R 755 /usr/share/nginx/html && \
+    find /usr/share/nginx/html -type f -exec chmod 644 {} \;
+
 # Copy nginx configuration (optional, if you have custom config)
 # COPY nginx.conf /etc/nginx/conf.d/default.conf
 

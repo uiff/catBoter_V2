@@ -1,23 +1,5 @@
 [
   {
-    "planName": "sfsdfsdf",
-    "startTime": "06:00",
-    "endTime": "22:00",
-    "feedingsPerDay": 4,
-    "weightPerFeeding": 15,
-    "selectedDays": [
-      "Montag",
-      "Dienstag",
-      "Mittwoch",
-      "Donnerstag",
-      "Freitag",
-      "Samstag",
-      "Sonntag"
-    ],
-    "minIntervalMinutes": 60,
-    "active": false
-  },
-  {
     "planName": "sdf",
     "selectedDays": [
       "Montag",
@@ -193,37 +175,66 @@
       "Dienstag": [
         {
           "time": "07:00",
-          "weight": 11.25
+          "weight": 11.25,
+          "status": true,
+          "last_attempt": "2026-01-13T07:00:48.123723",
+          "message": "11.3g gefüttert (Soll: 11.25g)",
+          "fed_amount": 0.0
         },
         {
           "time": "11:00",
-          "weight": 11.25
+          "weight": 11.25,
+          "status": true,
+          "last_attempt": "2026-01-13T11:01:19.770667",
+          "message": "12.1g gefüttert (Soll: 11.25g)",
+          "fed_amount": 0.0
         },
         {
           "time": "15:00",
-          "weight": 11.25
+          "weight": 11.25,
+          "status": true,
+          "last_attempt": "2026-01-13T15:01:14.448129",
+          "message": "11.5g gefüttert (Soll: 11.25g)",
+          "fed_amount": 0.0
         },
         {
           "time": "19:00",
-          "weight": 11.25
+          "weight": 11.25,
+          "status": true,
+          "last_attempt": "2026-01-13T19:01:13.727310",
+          "message": "13.5g gefüttert (Soll: 11.25g)",
+          "fed_amount": 0.0
         }
       ],
       "Mittwoch": [
         {
           "time": "07:00",
-          "weight": 11.25
+          "weight": 11.25,
+          "status": null
         },
         {
           "time": "11:00",
-          "weight": 11.25
+          "weight": 11.25,
+          "status": true,
+          "last_attempt": "2026-01-14T11:01:20.614321",
+          "message": "13.2g gefüttert (Soll: 11.25g)",
+          "fed_amount": 0.0
         },
         {
           "time": "15:00",
-          "weight": 11.25
+          "weight": 11.25,
+          "status": true,
+          "last_attempt": "2026-01-14T15:01:32.105858",
+          "message": "11.4g gefüttert (Soll: 11.25g)",
+          "fed_amount": 0.0
         },
         {
           "time": "19:00",
-          "weight": 11.25
+          "weight": 11.25,
+          "status": true,
+          "last_attempt": "2026-01-14T19:01:25.850384",
+          "message": "13.8g gefüttert (Soll: 11.25g)",
+          "fed_amount": 0.0
         }
       ],
       "Donnerstag": [
@@ -302,5 +313,61 @@
     "weightMode": "daily",
     "dailyWeight": 45,
     "active": true
+  },
+  {
+    "planName": "sdfsdf",
+    "startTime": "06:00",
+    "endTime": "22:00",
+    "feedingsPerDay": 4,
+    "weightPerFeeding": 15,
+    "selectedDays": [
+      "Montag",
+      "Dienstag",
+      "Mittwoch",
+      "Donnerstag",
+      "Freitag",
+      "Samstag",
+      "Sonntag"
+    ],
+    "minIntervalMinutes": 60,
+    "active": false
+  },
+  {
+    "planName": "RandomGen_test_20260113",
+    "selectedDays": [
+      "Dienstag"
+    ],
+    "feedingSchedule": {
+      "Dienstag": [
+        {
+          "time": "06:00",
+          "weight": 8.333333333333334
+        },
+        {
+          "time": "08:41",
+          "weight": 8.333333333333334
+        },
+        {
+          "time": "11:33",
+          "weight": 8.333333333333334
+        },
+        {
+          "time": "13:49",
+          "weight": 8.333333333333334
+        },
+        {
+          "time": "17:05",
+          "weight": 8.333333333333334
+        },
+        {
+          "time": "19:40",
+          "weight": 8.333333333333334
+        }
+      ]
+    },
+    "weightMode": "daily",
+    "dailyWeight": 50,
+    "active": false,
+    "isRandomGenerated": true
   }
 ]

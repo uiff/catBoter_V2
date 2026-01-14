@@ -20,15 +20,20 @@ export interface AutoPlan {
   active: boolean
 }
 
+export interface TimeRange {
+  start: string
+  end: string
+}
+
 export interface RandomPlan {
   planName: string
   active: boolean
-  startTime: string
-  endTime: string
-  feedingsPerDay: number
-  weightPerFeeding: number
-  selectedDays: string[]
-  minIntervalMinutes?: number  // Minimum interval between feedings in minutes
+  minFeedings: number
+  maxFeedings: number
+  minAmount: number
+  maxAmount: number
+  timeRanges: TimeRange[]
+  selectedDays?: string[]  // Optional, may not be in all plans
 }
 
 export type FeedingPlan = AutoPlan | RandomPlan
