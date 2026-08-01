@@ -57,10 +57,15 @@ export default function App() {
         </main>
         <TabBar />
       </div>
+      {/* mobileOffset: in der installierten PWA reicht die Seite bis unter die
+          iPhone-Kamera (black-translucent) - ohne Safe-Area-Offset landen
+          Toasts unlesbar hinter dem Notch */}
       <Toaster
         position="top-center"
         theme={theme === 'system' ? 'system' : theme}
         toastOptions={{ duration: 3000 }}
+        mobileOffset={{ top: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}
+        offset={{ top: 16 }}
       />
       <PwaUpdatePrompt />
     </QueryClientProvider>

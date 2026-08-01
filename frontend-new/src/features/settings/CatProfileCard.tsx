@@ -113,7 +113,11 @@ export function CatProfileCard() {
                     onChange={(e) => updateCat(index, { name: e.target.value })}
                   />
                   <div className="grid grid-cols-2 gap-3">
+                    {/* Explizite IDs: beide Katzen haben "Gewicht"/"Alter"-Felder -
+                        aus dem Label generierte IDs kollidieren sonst und ein Tipp
+                        aufs Label der zweiten Katze fokussiert das Feld der ersten */}
                     <Input
+                      id={`cat-${index}-weight`}
                       label="Gewicht"
                       type="number"
                       min={0.5}
@@ -125,6 +129,7 @@ export function CatProfileCard() {
                       onChange={(e) => updateCat(index, { weight: e.target.value })}
                     />
                     <Input
+                      id={`cat-${index}-age`}
                       label="Alter"
                       type="number"
                       min={0}

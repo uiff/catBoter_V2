@@ -358,15 +358,20 @@ def set_app_settings():
                 "age_years": None,
                 "activity": "normal",
             }
-            for key, low, high in (("weight_kg", 0.5, 20), ("age_years", 0, 30)):
+            for key, label, low, high, unit in (
+                ("weight_kg", "Gewicht", 0.5, 20, "kg"),
+                ("age_years", "Alter", 0, 30, "Jahren"),
+            ):
                 value = cat.get(key)
                 if value is not None:
                     try:
                         value = float(value)
                     except (TypeError, ValueError):
-                        return jsonify({"error": f"Ungültiger Wert für {key}"}), 400
+                        return jsonify({"error": f"Ungültiger Wert für {label}"}), 400
                     if not (low <= value <= high):
-                        return jsonify({"error": f"{key} ausserhalb des gültigen Bereichs"}), 400
+                        name = str(cat.get("name") or "Katze")[:30]
+                        return jsonify({"error": f"{label} von {name} muss zwischen "
+                                                 f"{low:g} und {high:g} {unit} liegen"}), 400
                 entry[key] = value
             if cat.get("activity") in ("ruhig", "normal", "aktiv"):
                 entry["activity"] = cat["activity"]
@@ -385,16 +390,19 @@ def set_app_settings():
             "start_date": current.get("start_date"),
             "start_grams": current.get("start_grams"),
         }
-        for key, low, high in (("target_grams", 5, 200), ("start_grams", 5, 300)):
+        for key, label, low, high in (
+            ("target_grams", "Tagesziel", 5, 200),
+            ("start_grams", "Startmenge", 5, 300),
+        ):
             if key in incoming:
                 value = incoming[key]
                 if value is not None:
                     try:
                         value = float(value)
                     except (TypeError, ValueError):
-                        return jsonify({"error": f"Ungültiger Wert für {key}"}), 400
+                        return jsonify({"error": f"Ungültiger Wert für {label}"}), 400
                     if not (low <= value <= high):
-                        return jsonify({"error": f"{key} muss zwischen {low} und {high} g liegen"}), 400
+                        return jsonify({"error": f"{label} muss zwischen {low} und {high} g liegen"}), 400
                 diet[key] = value
         if "weekly_reduction_pct" in incoming:
             try:
