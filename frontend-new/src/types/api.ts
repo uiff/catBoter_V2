@@ -145,10 +145,16 @@ export interface MqttSettings {
 }
 
 export interface CatProfile {
+  name: string
   weight_kg: number | null
   age_years: number | null
   activity: 'ruhig' | 'normal' | 'aktiv'
+}
+
+export interface CatProfiles {
+  /** Gemeinsames Futter - eine Energieangabe für alle Katzen */
   kcal_per_100g: number | null
+  cats: CatProfile[]
 }
 
 export interface AppSettings {
@@ -159,7 +165,7 @@ export interface AppSettings {
   untouched_alert_hours: number
   mqtt: MqttSettings
   ha_discovery: boolean
-  cat_profile: CatProfile
+  cat_profiles: CatProfiles
 }
 
 export interface HealthStats {

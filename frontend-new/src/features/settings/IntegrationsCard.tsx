@@ -131,7 +131,9 @@ export function IntegrationsCard() {
               Speichern
             </Button>
 
-            <div className="space-y-1 rounded-md bg-surface-2 p-3 font-mono text-xs">
+            {/* break-all: lange Code-Strings dürfen die Karte nie breiter als
+                den Viewport machen (verursachte horizontales Seiten-Scrollen) */}
+            <div className="min-w-0 space-y-1 whitespace-pre-wrap break-all rounded-md bg-surface-2 p-3 font-mono text-xs">
               <p>catboter/status – Zustand (JSON, retained)</p>
               <p>catboter/command – Steuerung: {'{"action":"feed","grams":10}'}</p>
               <p>catboter/event – Ereignisse</p>

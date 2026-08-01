@@ -87,6 +87,9 @@
     @apply bg-background text-foreground antialiased;
     font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     overscroll-behavior-y: none;
+    /* Kein horizontales Scrollen der Seite - breite Inhalte müssen in ihren
+       Containern umbrechen oder intern scrollen */
+    overflow-x: hidden;
   }
 
   /* Messwerte immer mit Tabellenziffern */

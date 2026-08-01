@@ -119,7 +119,7 @@ function TypeChooser({ onSelect }: { onSelect: (type: PlanType) => void }) {
 /** Chip neben der Tagesmenge: übernimmt die aus dem Katzenprofil berechnete Empfehlung. */
 function RecommendationChip({ onApply }: { onApply: (grams: number) => void }) {
   const settings = useQuery({ queryKey: ['app-settings'], queryFn: api.getAppSettings })
-  const grams = recommendedGramsPerDay(settings.data?.cat_profile)
+  const grams = recommendedGramsPerDay(settings.data?.cat_profiles)
   if (grams === null) return null
   return (
     <button
