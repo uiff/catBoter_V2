@@ -5,6 +5,7 @@
 # Documentation (nur wichtige Docs behalten)
 *.md
 !README.md
+!docs/AUFBAU.md
 !INSTALL.md
 !WIFI_FALLBACK.md
 !SECURITY.md

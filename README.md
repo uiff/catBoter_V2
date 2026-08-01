@@ -34,6 +34,10 @@
 
 ## Hardware
 
+> 🔧 **[Ausführliche Aufbau-Anleitung mit Fotos und Schema → docs/AUFBAU.md](docs/AUFBAU.md)**
+
+![Aufbau](docs/photos/motor-treiber-wandler.jpg)
+
 ![Komponenten](docs/components.svg)
 
 ### Komponentenliste mit Bezugsquellen
