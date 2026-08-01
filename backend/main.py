@@ -48,14 +48,20 @@ def create_app():
 app = create_app()
 
 
+# Verbundene Clients (fürs Weight-Streaming: ohne Zuschauer keine Messungen)
+_clients = {"count": 0}
+
+
 @socketio.on('connect')
 def handle_connect():
-    logging.info(f"WebSocket: Client verbunden - {request.sid}")
+    _clients["count"] += 1
+    logging.info(f"WebSocket: Client verbunden - {request.sid} ({_clients['count']} aktiv)")
 
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    logging.info(f"WebSocket: Client getrennt - {request.sid}")
+    _clients["count"] = max(0, _clients["count"] - 1)
+    logging.info(f"WebSocket: Client getrennt - {request.sid} ({_clients['count']} aktiv)")
 
 
 @socketio.on('request_update')
@@ -153,6 +159,31 @@ def background_sensor_polling():
         eventlet.sleep(5)
 
 
+def background_weight_streaming():
+    """Schneller Nur-Gewicht-Kanal: 0.5-s-Takt, solange Clients verbunden sind.
+
+    Pausiert während einer Dosierung - der Regelkreis liest den Sensor dann
+    selbst (und streamt feeding_progress); ein zweiter Leser würde nur um das
+    Sensor-Lock konkurrieren. Gesendet wird nur bei Änderung >= 0.1 g; der
+    5-s-sensor_update bleibt die vollständige Wahrheit (Tank, Tagesmenge).
+    """
+    from services import feeding_service
+    logging.info("Weight-Streaming gestartet (0.5 s Intervall bei verbundenen Clients)")
+    last_sent = None
+    while True:
+        try:
+            if (_clients["count"] > 0 and not motor_running()
+                    and not feeding_service.is_dosing()):
+                weight = get_cached_weight()
+                if weight is not None and (last_sent is None
+                                           or abs(weight - last_sent) >= 0.1):
+                    realtime.emit_weight_update(weight)
+                    last_sent = weight
+        except Exception as e:
+            logging.debug(f"Weight-Streaming Fehler: {e}")
+        eventlet.sleep(0.5 if _clients["count"] > 0 else 2)
+
+
 def feeding_status_scheduler():
     """Prüft jede Minute, ob eine geplante Fütterung fällig ist."""
     logging.info("Fütterungs-Scheduler gestartet (60 s Intervall)")
@@ -193,6 +224,7 @@ if __name__ == '__main__':
 
         # Hintergrund-Tasks (explizit hier, nicht als Import-Nebenwirkung)
         eventlet.spawn(background_sensor_polling)
+        eventlet.spawn(background_weight_streaming)
         eventlet.spawn(feeding_status_scheduler)
 
         socketio.run(

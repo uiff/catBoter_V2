@@ -109,6 +109,16 @@ export function connectSocket() {
     useSocketStore.setState({ sensor: snapshot, lastUpdateAt: Date.now() })
   })
 
+  // Schneller Nur-Gewicht-Kanal (0.5 s): nur das Napfgewicht im Snapshot
+  // aktualisieren, alles andere kommt weiter über sensor_update
+  socket.on('weight_update', (event: { weight: number }) => {
+    useSocketStore.setState((state) =>
+      state.sensor
+        ? { sensor: { ...state.sensor, weight: event.weight }, lastUpdateAt: Date.now() }
+        : {},
+    )
+  })
+
   socket.on('feeding_started', (event: FeedingStarted) => {
     useSocketStore.setState({
       feeding: {

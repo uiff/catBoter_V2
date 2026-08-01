@@ -26,6 +26,15 @@ def emit_sensor_update(payload: dict):
         logging.debug(f"emit sensor_update fehlgeschlagen: {e}")
 
 
+def emit_weight_update(weight: float):
+    """Schneller Nur-Gewicht-Kanal (0.5 s Takt) - hält die Napf-Anzeige flüssig,
+    ohne den vollen sensor_update (Tank-Distanzmessung!) zu beschleunigen."""
+    try:
+        socketio.emit("weight_update", {"weight": round(float(weight), 1)})
+    except Exception as e:
+        logging.debug(f"emit weight_update fehlgeschlagen: {e}")
+
+
 def emit_feeding_started(source: str, target_grams: float):
     try:
         socketio.emit("feeding_started", {
