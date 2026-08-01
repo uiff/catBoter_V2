@@ -86,14 +86,23 @@ def vet_report():
         html = f"""<meta charset="utf-8">
 <title>CatBoter Gesundheitsbericht</title>
 <style>
- body {{ font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; color: #111; }}
+ body {{ font-family: system-ui, sans-serif; max-width: 720px; margin: 0 auto 2rem; padding: 0 1rem; color: #111; }}
  h1 {{ font-size: 1.4rem; }} h2 {{ font-size: 1.05rem; margin-top: 1.6rem; }}
  table {{ border-collapse: collapse; width: 100%; font-size: 0.9rem; }}
  td, th {{ border-bottom: 1px solid #ddd; padding: 0.35rem 0.5rem; text-align: left; }}
  td.v {{ text-align: right; font-variant-numeric: tabular-nums; }}
  .muted {{ color: #666; font-size: 0.85rem; }}
- @media print {{ body {{ margin: 0.5rem; }} }}
+ .bar {{ position: sticky; top: 0; background: #fff; display: flex; gap: 0.5rem;
+        padding: 0.75rem 0; border-bottom: 1px solid #ddd; margin-bottom: 1rem; }}
+ .bar button {{ font: inherit; padding: 0.55rem 1rem; border-radius: 8px;
+        border: 1px solid #cbd5e1; background: #f8fafc; cursor: pointer; min-height: 44px; }}
+ .bar button.p {{ background: #0e7490; color: #fff; border-color: #0e7490; }}
+ @media print {{ body {{ margin: 0.5rem; }} .bar {{ display: none; }} }}
 </style>
+<div class="bar">
+  <button onclick="if(history.length>1){{history.back()}}else{{location.href='/'}}">← Zurück zur App</button>
+  <button class="p" onclick="window.print()">Drucken / PDF</button>
+</div>
 <h1>CatBoter – Gesundheitsbericht</h1>
 <p class="muted">Erstellt am {datetime.now().strftime('%d.%m.%Y %H:%M')} ·
 Zeitraum: letzte 30 Tage · Hinweis: Werte umfassen ALLE Katzen des Haushalts gemeinsam.</p>
@@ -116,8 +125,7 @@ Zeitraum: letzte 30 Tage · Hinweis: Werte umfassen ALLE Katzen des Haushalts ge
 <table>{event_rows}</table>
 
 <p class="muted">Automatisch erstellt von CatBoter V3 (iotueli). Kein Ersatz für eine
-tierärztliche Untersuchung.</p>
-<script>window.print &amp;&amp; setTimeout(() => window.print(), 300)</script>"""
+tierärztliche Untersuchung.</p>"""
         return Response(html, mimetype="text/html; charset=utf-8")
     except Exception as e:
         logging.error(f"Report error: {e}")

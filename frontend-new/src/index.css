@@ -81,15 +81,17 @@
 
   html {
     -webkit-tap-highlight-color: transparent;
+    /* clip statt hidden: schneidet horizontalen Überlauf ab, OHNE einen
+       Scroll-Container zu erzeugen - overflow-x:hidden auf body bricht in
+       iOS Safari position:fixed (Tab-Bar schwebte nicht mehr unten) */
+    overflow-x: clip;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
     font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     overscroll-behavior-y: none;
-    /* Kein horizontales Scrollen der Seite - breite Inhalte müssen in ihren
-       Containern umbrechen oder intern scrollen */
-    overflow-x: hidden;
+    overflow-x: clip;
   }
 
   /* Messwerte immer mit Tabellenziffern */

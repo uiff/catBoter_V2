@@ -133,10 +133,10 @@ export function HealthCard() {
               </ul>
             )}
 
+            {/* Bewusst im selben Fenster: in der installierten PWA gibt es keine
+                Browser-Leiste - der Bericht bringt einen eigenen Zurück-Knopf mit */}
             <a
               href={api.vetReportUrl}
-              target="_blank"
-              rel="noreferrer"
               className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md border border-border bg-transparent px-4 text-sm font-medium text-foreground transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <FileHeart className="h-4 w-4" />
