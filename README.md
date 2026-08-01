@@ -79,6 +79,10 @@
 
 ## Installation
 
+**Voraussetzung:** Raspberry Pi OS (64-bit, Lite empfohlen) mit **SSH** und **I2C** aktiviert —
+Schritt-für-Schritt in der [Aufbau-Anleitung, Schritt 0](docs/AUFBAU.md#schritt-0--raspberry-pi-vorbereiten).
+Kurzform: SSH + WLAN direkt im Raspberry Pi Imager setzen, danach `sudo raspi-config nonint do_i2c 0`.
+
 ```bash
 # 1. Repository klonen
 git clone https://github.com/uiff/catBoter_V2.git catBoterV3

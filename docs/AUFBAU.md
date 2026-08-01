@@ -28,6 +28,33 @@ steht in der [README](../README.md#hardware), der komplette Schaltplan hier:
 - **WAGO-221**-Klemmen für die 24-V-Verteilung
 - 3D-gedrucktes Gehäuse mit Magnet-Deckel und eigenem Elektronik-Fach
 
+## Schritt 0 — Raspberry Pi vorbereiten
+
+1. **Raspberry Pi OS (64-bit) flashen** mit dem [Raspberry Pi Imager](https://www.raspberrypi.com/software/) —
+   die **Lite**-Version reicht und spart über 3 GB SD-Speicher.
+2. **Im Imager (Zahnrad/„Anpassen") direkt einstellen** — das erspart Monitor und Tastatur:
+   - **SSH aktivieren** (Fernzugriff — so wird der CatBoter später gewartet und deployt)
+   - **WLAN** (SSID + Passwort) und **Hostname** (z. B. `catboter`)
+   - Benutzername/Passwort setzen
+3. Nach dem ersten Boot per SSH verbinden und **I2C aktivieren** (für den VL53L0X):
+
+   ```bash
+   ssh <benutzer>@catboter.local
+   sudo raspi-config nonint do_i2c 0     # I2C einschalten
+   sudo raspi-config nonint do_ssh 0     # SSH dauerhaft an (falls nicht im Imager gesetzt)
+   sudo reboot
+   ```
+
+4. Prüfen, ob der Distanzsensor gefunden wird (nach der Verdrahtung in Schritt 3):
+
+   ```bash
+   sudo apt install -y i2c-tools
+   i2cdetect -y 1        # muss "29" zeigen (VL53L0X)
+   ```
+
+**Tipp:** Dem Pi im Router eine **feste IP** zuweisen — dann bleibt die App immer
+unter derselben Adresse erreichbar und die PWA-Installation zeigt nie ins Leere.
+
 ## Schritt 1 — Mechanik
 
 1. Motor mit integriertem Treiber in die Motoraufnahme schrauben (Kühlkörper zeigt
