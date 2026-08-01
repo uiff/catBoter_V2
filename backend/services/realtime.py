@@ -61,6 +61,43 @@ def emit_feeding_completed(source: str, success: bool, aborted: bool,
         })
     except Exception as e:
         logging.debug(f"emit feeding_completed fehlgeschlagen: {e}")
+    # Zentrale Stelle für Ereignis-Verlauf, Fehl-Push, Gesundheits-Monitor und
+    # MQTT-Event: beide Pfade (Plan + manuell) laufen hier durch
+    try:
+        from services import event_log
+        label = "manuell" if source == "manual" else "Plan"
+        event_log.log_event(
+            "feeding_completed" if success else "feeding_failed",
+            f"{label}: {message}",
+            grams=fed_grams,
+        )
+    except Exception as e:
+        logging.debug(f"Event-Log feeding fehlgeschlagen: {e}")
+
+    if not success and not aborted:
+        try:
+            from services import push_service
+            push_service.notify("CatBoter - Fütterung fehlgeschlagen", message, tag="feeding")
+        except Exception as e:
+            logging.debug(f"Fehl-Push fehlgeschlagen: {e}")
+
+    if success and fed_grams > 0:
+        try:
+            from services import health_monitor
+            health_monitor.on_feeding_completed(fed_grams)
+        except Exception as e:
+            logging.debug(f"Health-Hook fehlgeschlagen: {e}")
+
+    try:
+        from services import mqtt_service
+        mqtt_service.publish_event({
+            "type": "feeding_completed" if success else "feeding_failed",
+            "source": source,
+            "fed_grams": round(float(fed_grams), 1),
+            "message": message,
+        })
+    except Exception as e:
+        logging.debug(f"MQTT-Event fehlgeschlagen: {e}")
 
 
 def emit_plans_updated():

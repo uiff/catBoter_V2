@@ -14,6 +14,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     git \
+    libffi-dev \
+    python3-dev \
     # Runtime Dependencies (bleiben im Image)
     i2c-tools \
     curl \
@@ -28,7 +30,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Build Dependencies entfernen um Image zu verkleinern
-RUN apt-get purge -y gcc g++ git \
+RUN apt-get purge -y gcc g++ git libffi-dev python3-dev \
     && apt-get autoremove -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*

@@ -1,11 +1,15 @@
 /** Typisierter API-Client - die EINZIGE fetch-Stelle der App. */
 import type {
   AppSettings,
+  BackupInfo,
+  HealthStats,
   ConsumptionStats,
   DailyEntry,
+  EventEntry,
   FallbackConfig,
   FallbackStatus,
   MotorStatus,
+  MqttSettings,
   NetworkInfo,
   SensorSnapshot,
   SystemStats,
@@ -43,7 +47,9 @@ async function request<T>(path: string, init?: RequestInit & { timeoutMs?: numbe
   let res: Response
   try {
     res = await fetch(`${API}${path}`, {
-      headers: rest.body ? { 'Content-Type': 'application/json' } : undefined,
+      // Nur für JSON-Strings den Header setzen - FormData (Backup-Upload)
+      // braucht den Browser-eigenen multipart-Header mit Boundary
+      headers: typeof rest.body === 'string' ? { 'Content-Type': 'application/json' } : undefined,
       signal: timeoutSignal(timeoutMs),
       ...rest,
     })
@@ -90,9 +96,37 @@ export const api = {
 
   // Motor / Fütterung
   getMotorStatus: () => get<MotorStatus>('/motor/status'),
-  manualFeed: (grams: number) =>
-    post<{ status: string; target_grams: number }>('/motor/feed', { amount: grams }),
+  manualFeed: (grams: number, slowMinutes = 0) =>
+    post<{ status: string; target_grams: number }>('/motor/feed', {
+      amount: grams,
+      slow_minutes: slowMinutes,
+    }),
   stopFeeding: () => post<{ success: boolean; message: string }>('/motor/stop'),
+
+  // Push / Gesundheit
+  getPushPublicKey: () =>
+    get<{ public_key: string; subscriptions: number }>('/push/public_key'),
+  pushSubscribe: (subscription: PushSubscriptionJSON) =>
+    post<{ success: boolean }>('/push/subscribe', subscription),
+  pushUnsubscribe: (endpoint: string) =>
+    post<{ success: boolean }>('/push/unsubscribe', { endpoint }),
+  pushTest: () => post<{ success: boolean; delivered: number }>('/push/test'),
+  getHealthStats: () => get<HealthStats>('/health/stats'),
+
+  // Verlauf / Backup
+  getEvents: (days: number) => get<EventEntry[]>(`/events?days=${days}`),
+  eventsCsvUrl: `${API}/events/export.csv?days=90`,
+  getBackupInfo: () => get<BackupInfo>('/backup/info'),
+  backupDownloadUrl: `${API}/backup/download`,
+  restoreBackup: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request<{ success: boolean; message: string }>('/backup/restore', {
+      method: 'POST',
+      body: form,
+      timeoutMs: 60_000,
+    })
+  },
 
   // Pläne
   getAutoPlans: () => get<AutoPlan[]>('/feeding_plan'),
@@ -138,7 +172,8 @@ export const api = {
   disableAp: () => post<{ status: string; message: string }>('/system/wifi_fallback/disable_ap'),
   getTimeStatus: () => get<TimeStatus>('/system/time_status'),
   getAppSettings: () => get<AppSettings>('/system/settings'),
-  setAppSettings: (settings: Partial<AppSettings>) =>
+  // mqtt darf partiell sein: ohne password-Feld bleibt das gespeicherte Passwort unverändert
+  setAppSettings: (settings: Partial<Omit<AppSettings, 'mqtt'>> & { mqtt?: Partial<MqttSettings> }) =>
     post<{ success: boolean } & AppSettings>('/system/settings', settings),
   restartBackend: () => post<{ success: boolean; message: string }>('/system/restart_backend'),
   rebootHost: () => post<{ success: boolean; message: string }>('/system/reboot'),

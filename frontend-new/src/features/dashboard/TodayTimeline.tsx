@@ -1,4 +1,4 @@
-import { CircleCheck, CircleX, Clock, Hand, PawPrint, Shuffle, Timer } from 'lucide-react'
+import { CircleCheck, CircleSlash, CircleX, Clock, Hand, PawPrint, Shuffle, Timer } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/Card'
 import { EmptyState, Skeleton } from '@/components/ui/Misc'
 import { formatGrams, formatTime } from '@/lib/format'
@@ -44,14 +44,21 @@ export function TodayTimeline({ feedings, loading }: TodayTimelineProps) {
           <ul className="divide-y divide-border">
             {feedings.map((feeding, index) => {
               const status = statusFor(feeding, now)
+              const skipped = feeding.skipped === true
               const meta = TYPE_META[feeding.type]
               const TypeIcon = meta.icon
               return (
                 <li key={`${feeding.time}-${index}`} className="flex items-center gap-3 py-2.5">
-                  {status === 'done' && <CircleCheck className="h-5 w-5 shrink-0 text-success" />}
-                  {status === 'failed' && <CircleX className="h-5 w-5 shrink-0 text-danger" />}
-                  {status === 'pending' && <Timer className="h-5 w-5 shrink-0 text-muted-foreground" />}
-                  {status === 'overdue' && <Timer className="h-5 w-5 shrink-0 text-warning" />}
+                  {skipped ? (
+                    <CircleSlash className="h-5 w-5 shrink-0 text-info" />
+                  ) : (
+                    <>
+                      {status === 'done' && <CircleCheck className="h-5 w-5 shrink-0 text-success" />}
+                      {status === 'failed' && <CircleX className="h-5 w-5 shrink-0 text-danger" />}
+                      {status === 'pending' && <Timer className="h-5 w-5 shrink-0 text-muted-foreground" />}
+                      {status === 'overdue' && <Timer className="h-5 w-5 shrink-0 text-warning" />}
+                    </>
+                  )}
 
                   <span className="tnum w-12 font-medium">{formatTime(feeding.time)}</span>
 
@@ -60,11 +67,15 @@ export function TodayTimeline({ feedings, loading }: TodayTimelineProps) {
                     {meta.label}
                   </span>
 
-                  <span className={cn('tnum ml-auto text-sm', status === 'pending' && 'text-muted-foreground')}>
-                    {status === 'done' || status === 'failed'
-                      ? formatGrams(feeding.amount)
-                      : `geplant ${formatGrams(feeding.planned_amount)}`}
-                  </span>
+                  {skipped ? (
+                    <span className="ml-auto text-sm text-info">übersprungen · Napf voll</span>
+                  ) : (
+                    <span className={cn('tnum ml-auto text-sm', status === 'pending' && 'text-muted-foreground')}>
+                      {status === 'done' || status === 'failed'
+                        ? formatGrams(feeding.amount)
+                        : `geplant ${formatGrams(feeding.planned_amount)}`}
+                    </span>
+                  )}
                 </li>
               )
             })}

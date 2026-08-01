@@ -69,11 +69,63 @@ def handle_request_update():
 
 
 def background_sensor_polling():
-    """Pusht alle 5 s den Sensor-Zustand an alle Clients."""
+    """Pusht alle 5 s den Sensor-Zustand; zusätzlich: Tank-Tages-Snapshot,
+    Gesundheits-Monitor, Tank-Warn-Push (Zustandswechsel) und MQTT-Status."""
+    from services import health_monitor, mqtt_service, settings_service, feeding_service
     logging.info("Background Sensor Polling gestartet (5 s Intervall)")
+    last_date = datetime.date.today()
+    last_total = 0.0
+    last_below_warn = None  # None = noch kein Messwert (kein Push beim Start)
     while True:
         try:
-            realtime.emit_sensor_update(_sensor_snapshot())
+            snapshot = _sensor_snapshot()
+            realtime.emit_sensor_update(snapshot)
+
+            # Gesundheits-Monitor (Fressverhalten aus der Gewichtskurve)
+            try:
+                hours = settings_service.get_settings().get('untouched_alert_hours', 12)
+                health_monitor.sample(snapshot.get('weight'), hours)
+            except Exception as e:
+                logging.debug(f"Health-Sample Fehler: {e}")
+
+            # Tank-Warnung als Push - Schwelle aus den App-Einstellungen
+            # (tank_warn_percent), nur beim Unterschreiten (kein Spam)
+            percent = (snapshot.get('tank') or {}).get('percent')
+            if percent is not None:
+                try:
+                    warn = settings_service.get_settings().get('tank_warn_percent', 20)
+                except Exception:
+                    warn = 20
+                below = percent < warn
+                if below and last_below_warn is False:
+                    try:
+                        from services import push_service
+                        push_service.notify('CatBoter - Tank',
+                                            f'Füllstand niedrig ({percent:.0f} %) - bitte nachfüllen',
+                                            tag='tank')
+                    except Exception as e:
+                        logging.debug(f"Tank-Push fehlgeschlagen: {e}")
+                last_below_warn = below
+
+            # MQTT-Status (retained, nur bei Änderung)
+            try:
+                mqtt_service.publish_status(
+                    snapshot,
+                    next_feeding=feedingControl.get_next_feeding_time(),
+                    feeding_active=feeding_service.get_active_feeding(),
+                )
+            except Exception as e:
+                logging.debug(f"MQTT-Status Fehler: {e}")
+
+            today = datetime.date.today()
+            if today != last_date:
+                # last_total ist der letzte Stand des VORTAGES
+                try:
+                    tank_service.record_daily_snapshot(last_total)
+                except Exception as e:
+                    logging.warning(f"Tank-Snapshot fehlgeschlagen: {e}")
+                last_date = today
+            last_total = snapshot.get('today_total') or 0.0
         except Exception as e:
             logging.error(f"Sensor-Polling Fehler: {e}")
         eventlet.sleep(5)
@@ -100,10 +152,22 @@ class _FeedingNotifier:
 if __name__ == '__main__':
     try:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
-        logging.info(f"CatBoter V3.1 startet - Daten-Verzeichnis: {DATA_DIR}")
+        logging.info(f"CatBoter V3.2 startet - Daten-Verzeichnis: {DATA_DIR}")
+
+        # Ereignis-Log: alte Einträge aufräumen (Speicher-Budget) + Start markieren
+        from services import event_log
+        event_log.compact()
+        event_log.log_event("backend_start", "Backend gestartet")
 
         # Plan-Fütterungen senden Realtime-Events
         feedingControl.set_feeding_notifier(_FeedingNotifier())
+
+        # MQTT starten (falls in den Einstellungen aktiviert)
+        try:
+            from services import mqtt_service
+            mqtt_service.apply_settings()
+        except Exception as e:
+            logging.warning(f"MQTT-Start fehlgeschlagen: {e}")
 
         # Hintergrund-Tasks (explizit hier, nicht als Import-Nebenwirkung)
         eventlet.spawn(background_sensor_polling)

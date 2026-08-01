@@ -20,7 +20,8 @@ def motor_feed():
     """Manuelle Fütterung: {amount: <Gramm>}. Antwort 202, Ergebnis kommt
     asynchron über die Socket-Events feeding_progress/feeding_completed."""
     data = request.get_json(silent=True) or {}
-    ok, error = feeding_service.start_manual_feed(data.get("amount"))
+    ok, error = feeding_service.start_manual_feed(
+        data.get("amount"), data.get("slow_minutes", 0))
     if not ok:
         status = 409 if "bereits" in (error or "") else 400
         if "Hardware" in (error or "") or "Sensor" in (error or ""):

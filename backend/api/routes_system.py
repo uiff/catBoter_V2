@@ -8,8 +8,8 @@ from datetime import datetime
 
 from flask import Blueprint, jsonify, request
 
-from core.config import DATA_DIR, APP_SETTINGS_FILE, APP_SETTINGS_DEFAULTS
-from services import power_service, system_service, wifi_service
+from core.config import DATA_DIR
+from services import power_service, settings_service, system_service, wifi_service
 
 bp = Blueprint("system", __name__)
 
@@ -151,7 +151,8 @@ def fallback_set_config():
         if not (1 <= len(ssid) <= 32):
             return jsonify({"error": "SSID muss 1-32 Zeichen haben"}), 400
         config["ssid"] = ssid
-    if data.get("password"):
+    # Maskenwert "********" = unverändert lassen (kommt aus dem GET zurück)
+    if data.get("password") and data["password"] != "********":
         password = str(data["password"])
         if len(password) < 8 or len(password) > 63:
             return jsonify({"error": "AP-Passwort muss 8-63 Zeichen haben"}), 400
@@ -250,8 +251,12 @@ def time_status():
 
 @bp.route("/system/settings", methods=["GET"])
 def get_app_settings():
-    settings = dict(APP_SETTINGS_DEFAULTS)
-    settings.update(_read_json(APP_SETTINGS_FILE, {}))
+    settings = settings_service.get_settings()
+    # MQTT-Passwort nie zurückgeben
+    mqtt = dict(settings.get("mqtt") or {})
+    if mqtt.get("password"):
+        mqtt["password"] = "********"
+    settings["mqtt"] = mqtt
     return jsonify(settings)
 
 
@@ -261,8 +266,7 @@ def set_app_settings():
     if not isinstance(data, dict):
         return jsonify({"error": "Keine Daten empfangen"}), 400
 
-    settings = dict(APP_SETTINGS_DEFAULTS)
-    settings.update(_read_json(APP_SETTINGS_FILE, {}))
+    changes = {}
 
     if "tank_warn_percent" in data:
         try:
@@ -271,10 +275,106 @@ def set_app_settings():
             return jsonify({"error": "Ungültige Tank-Warnschwelle"}), 400
         if not (5 <= warn <= 90):
             return jsonify({"error": "Tank-Warnschwelle muss zwischen 5 und 90 % liegen"}), 400
-        settings["tank_warn_percent"] = warn
+        changes["tank_warn_percent"] = warn
+
+    if "smart_feed" in data:
+        changes["smart_feed"] = bool(data["smart_feed"])
+
+    if "paused_until" in data:
+        value = data["paused_until"]
+        if value is not None:
+            # Zeitzonenbehaftete Eingaben (z. B. '...Z') zu naiver Lokalzeit
+            # normalisieren - der Scheduler vergleicht naiv
+            from logic.feedingControl import parse_pause_timestamp
+            until = parse_pause_timestamp(value)
+            if until is None:
+                return jsonify({"error": "Ungültiger Pause-Zeitpunkt"}), 400
+            if until <= datetime.now():
+                return jsonify({"error": "Pause-Zeitpunkt muss in der Zukunft liegen"}), 400
+            value = until.isoformat()
+        changes["paused_until"] = value
+
+    if "untouched_alert_hours" in data:
+        try:
+            hours = float(data["untouched_alert_hours"])
+        except (TypeError, ValueError):
+            return jsonify({"error": "Ungültiger Stundenwert"}), 400
+        if not (0 <= hours <= 72):
+            return jsonify({"error": "Stundenwert muss zwischen 0 und 72 liegen"}), 400
+        changes["untouched_alert_hours"] = hours
+
+    if "mqtt" in data:
+        incoming = data["mqtt"]
+        if not isinstance(incoming, dict):
+            return jsonify({"error": "Ungültige MQTT-Konfiguration"}), 400
+        current = dict(settings_service.get_settings().get("mqtt") or {})
+        current["enabled"] = bool(incoming.get("enabled", current.get("enabled", False)))
+        if "host" in incoming:
+            current["host"] = str(incoming["host"]).strip()
+        if "port" in incoming:
+            try:
+                port = int(incoming["port"])
+            except (TypeError, ValueError):
+                return jsonify({"error": "Ungültiger MQTT-Port"}), 400
+            if not (1 <= port <= 65535):
+                return jsonify({"error": "MQTT-Port muss zwischen 1 und 65535 liegen"}), 400
+            current["port"] = port
+        if "username" in incoming:
+            current["username"] = str(incoming["username"]).strip()
+        # Passwort nur übernehmen wenn gesetzt (leer/Maske = unverändert)
+        if incoming.get("password") and incoming["password"] != "********":
+            current["password"] = str(incoming["password"])
+        if current["enabled"] and not current.get("host"):
+            return jsonify({"error": "MQTT-Host fehlt"}), 400
+        changes["mqtt"] = current
+
+    if "ha_discovery" in data:
+        changes["ha_discovery"] = bool(data["ha_discovery"])
+
+    if "cat_profile" in data:
+        incoming = data["cat_profile"]
+        if not isinstance(incoming, dict):
+            return jsonify({"error": "Ungültiges Katzenprofil"}), 400
+        profile = dict(settings_service.get_settings().get("cat_profile") or {})
+        for key, low, high in (("weight_kg", 0.5, 20), ("age_years", 0, 30),
+                               ("kcal_per_100g", 50, 700)):
+            if key in incoming:
+                value = incoming[key]
+                if value is not None:
+                    try:
+                        value = float(value)
+                    except (TypeError, ValueError):
+                        return jsonify({"error": f"Ungültiger Wert für {key}"}), 400
+                    if not (low <= value <= high):
+                        return jsonify({"error": f"{key} ausserhalb des gültigen Bereichs"}), 400
+                profile[key] = value
+        if "activity" in incoming:
+            if incoming["activity"] not in ("ruhig", "normal", "aktiv"):
+                return jsonify({"error": "Ungültige Aktivität"}), 400
+            profile["activity"] = incoming["activity"]
+        changes["cat_profile"] = profile
 
     try:
-        _write_json(APP_SETTINGS_FILE, settings)
+        settings = settings_service.update_settings(changes)
     except OSError as e:
         return jsonify({"error": f"Speichern fehlgeschlagen: {e}"}), 500
-    return jsonify({"success": True, **settings})
+
+    if "paused_until" in changes:
+        from services import event_log
+        if changes["paused_until"]:
+            event_log.log_event("pause", f"Fütterungen pausiert bis {changes['paused_until']}")
+        else:
+            event_log.log_event("pause", "Pause aufgehoben")
+
+    # MQTT-Verbindung neu aufbauen, wenn sich die Konfiguration geändert hat
+    if "mqtt" in changes or "ha_discovery" in changes:
+        from services import mqtt_service
+        mqtt_service.apply_settings()
+
+    # Antwort mit maskiertem MQTT-Passwort
+    masked = dict(settings)
+    mqtt = dict(masked.get("mqtt") or {})
+    if mqtt.get("password"):
+        mqtt["password"] = "********"
+    masked["mqtt"] = mqtt
+    return jsonify({"success": True, **masked})

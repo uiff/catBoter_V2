@@ -3,7 +3,7 @@ import { CircleCheck, CircleX, Scale, Square } from 'lucide-react'
 import { toast } from 'sonner'
 import { Sheet } from '@/components/ui/Sheet'
 import { Button } from '@/components/ui/Button'
-import { ProgressBar, Stepper } from '@/components/ui/Misc'
+import { ProgressBar, SegmentedControl, Stepper } from '@/components/ui/Misc'
 import { api, ApiError } from '@/lib/api'
 import { formatGrams } from '@/lib/format'
 import { MANUAL_FEED_MAX_G, MANUAL_FEED_MIN_G, QUICK_AMOUNTS } from '@/lib/constants'
@@ -15,8 +15,11 @@ interface ManualFeedSheetProps {
   onClose: () => void
 }
 
+type SlowMinutes = '0' | '5' | '10'
+
 export function ManualFeedSheet({ open, onClose }: ManualFeedSheetProps) {
   const [amount, setAmount] = useState<number>(20)
+  const [slowMinutes, setSlowMinutes] = useState<SlowMinutes>('0')
   const [starting, setStarting] = useState(false)
   const [stopping, setStopping] = useState(false)
   const feeding = useFeeding()
@@ -56,7 +59,7 @@ export function ManualFeedSheet({ open, onClose }: ManualFeedSheetProps) {
   const startFeed = async () => {
     setStarting(true)
     try {
-      await api.manualFeed(amount)
+      await api.manualFeed(amount, Number(slowMinutes))
       // Fortschritt kommt über die Socket-Events
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Fütterung konnte nicht gestartet werden')
@@ -160,6 +163,19 @@ export function ManualFeedSheet({ open, onClose }: ManualFeedSheetProps) {
               max={MANUAL_FEED_MAX_G}
               step={5}
               suffix="g"
+            />
+          </div>
+
+          <div>
+            <p className="pb-2 text-sm font-medium">Anti-Schling</p>
+            <SegmentedControl<SlowMinutes>
+              options={[
+                { value: '0', label: 'Aus' },
+                { value: '5', label: '5 min' },
+                { value: '10', label: '10 min' },
+              ]}
+              value={slowMinutes}
+              onChange={setSlowMinutes}
             />
           </div>
 

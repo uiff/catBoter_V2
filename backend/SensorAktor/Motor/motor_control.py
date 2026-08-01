@@ -86,11 +86,17 @@ class MotorController:
         if not self.gewichtssensor:
             return False, "Kein Gewichtssensor vorhanden", 0.0
 
+        # Abort-Flag VOR der ersten (langsamen) Sensor-Messung zurücksetzen -
+        # sonst kann ein Stopp, der während des Initial-Reads eintrifft,
+        # von diesem Reset verschluckt werden
+        self._abort_feed = False
+
         start_time = time.time()
         initial_weight = self.gewichtssensor.get_weight()
         if initial_weight is None:
             return False, "Gewichtssensor liefert keinen Messwert", 0.0
-        self._abort_feed = False
+        if self._abort_feed:
+            return False, "Fütterung gestoppt vor Start", 0.0
         fed_amount = 0.0
         best_fed_amount = 0.0
         last_reading = initial_weight

@@ -14,6 +14,13 @@ function clampPercent(value: number): number {
   return Math.min(100, Math.max(0, value))
 }
 
+/** Vordefinierte Tank-Grössen (der Tank ist modular aufbaubar):
+ *  Leer-Distanz vom Sensor bis zum Boden je Variante. */
+const TANK_PRESETS = [
+  { key: 'gross', label: 'Grosser Tank', emptyCm: 55 },
+  { key: 'klein', label: 'Kleiner Tank', emptyCm: 31 },
+] as const
+
 /**
  * Tank-Kalibrierung als Mess-Assistent: Tankhöhe ist modular - im Messmodus
  * werden Live-Distanzen direkt als "voll"/"leer" übernommen.
@@ -87,6 +94,32 @@ export function TankCard() {
           </div>
         ) : (
           <>
+            {/* Schnellwahl der Tank-Variante: setzt die Leer-Distanz des Aufbaus */}
+            <div>
+              <p className="pb-2 text-sm font-medium">Tank-Variante</p>
+              <div className="grid grid-cols-2 gap-2">
+                {TANK_PRESETS.map((preset) => {
+                  const active = Number.parseFloat(maxStr) === preset.emptyCm
+                  return (
+                    <button
+                      key={preset.key}
+                      onClick={() => setMaxStr(preset.emptyCm.toFixed(1))}
+                      className={
+                        active
+                          ? 'rounded-md border border-primary bg-primary-soft px-3 py-2.5 text-sm font-medium text-primary'
+                          : 'rounded-md border border-border bg-surface px-3 py-2.5 text-sm font-medium hover:bg-surface-2'
+                      }
+                    >
+                      {preset.label}
+                      <span className="tnum block text-xs font-normal text-muted-foreground">
+                        {preset.emptyCm} cm
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
             <Button
               variant="secondary"
               className="w-full"

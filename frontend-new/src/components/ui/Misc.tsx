@@ -137,14 +137,16 @@ export function Switch({ checked, onChange, label, disabled }: SwitchProps) {
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={cn(
-        'relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-50',
-        checked ? 'bg-primary' : 'bg-surface-2 border border-border',
+        'relative h-7 w-12 shrink-0 rounded-full transition-colors duration-200 disabled:opacity-50',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+        checked ? 'bg-primary' : 'bg-surface-2 ring-1 ring-inset ring-border',
       )}
     >
       <span
         className={cn(
-          'absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-[left]',
-          checked ? 'left-6' : 'left-1',
+          'absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-white',
+          'shadow-sm ring-1 ring-black/10 transition-[left] duration-200',
+          checked ? 'left-[26px]' : 'left-1',
         )}
       />
     </button>

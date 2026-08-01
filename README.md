@@ -14,6 +14,15 @@
 - **Live-Dashboard** — Tankfüllstand (%), Napfgewicht, Tagesverbrauch in Echtzeit (Socket.IO)
 - **Statistik** — Tagesverlauf, Durchschnitt, Zuverlässigkeit, Systemwerte
 - **Messbasierte Tank-Kalibrierung** — „Aktuell = voll / leer" per Knopfdruck, ideal für höhenverstellbare Tanks
+- **Smart-Feed** — liegt noch Futter im Napf, dosiert der Plan nur die Differenz (mehrfach gemessene, plausibilisierte Waagen-Entscheidung)
+- **Anti-Schling-Modus** — Portion in kleinen Schüben über wählbare Minuten (pro Plan und manuell)
+- **Urlaubsmodus** — Fütterungen bis Zeitpunkt X pausieren; Verlauf mit **CSV-Export** fürs Tierarztgespräch
+- **Futter-Reichweite** — „Tank reicht noch ~4 Tage", selbstlernend aus Verbrauch und Füllstand
+- **Backup in der App** — genau ein Backup auf dem Gerät (überschreibend), Download & Wiederherstellung direkt im Browser
+- **Push-Benachrichtigungen** — Fütterung fehlgeschlagen, Tank niedrig, Napf lange unberührt (Web Push, ohne Cloud-Dienst)
+- **Gesundheits-Monitor** — Fressgeschwindigkeit und „Napf seit X h unberührt"-Warnung aus der Gewichtskurve
+- **MQTT / Home Assistant** — `catboter/status` (lesen, retained) + `catboter/command` (steuern: feed/stop/pause/resume), optional HA-Discovery
+- **Kalorienrechner** — Katzenprofil → empfohlene Tagesmenge (RER/MER), direkt in den Plan übernehmbar
 - **Notfall-Hotspot** — verliert der CatBoter jede Netzwerkverbindung (WLAN *und* LAN), startet er automatisch den Hotspot `CatBoter-Setup`; über `http://10.0.0.1` ist die volle App erreichbar
 - **PWA** — als App auf dem Homescreen installierbar, Hell-/Dunkel-Design automatisch
 

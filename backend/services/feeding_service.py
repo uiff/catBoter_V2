@@ -2,18 +2,79 @@
 
 Läuft als Background-Task (eventlet-Greenlet); Fortschritt geht als
 Socket.IO-Events raus. feeding_lock serialisiert gegen den Plan-Scheduler.
+Enthält auch den Anti-Schling-Modus (chunked_feed), den Plan- UND
+Manuell-Pfad gemeinsam nutzen.
 """
 import logging
 import threading
+import time
 
 from core.config import MIN_MANUAL_GRAMS, MAX_MANUAL_GRAMS, FEED_TIMEOUT_SECONDS
 from core.locks import feeding_lock
 from services import hardware, realtime
 from services.consumption_manager import consumption_manager
 
+MAX_SLOW_MINUTES = 15
+
 # Zustand der aktuell laufenden Fütterung (für GET /motor/status)
 _state_lock = threading.Lock()
 _active = None  # None oder {"source", "target_grams", "fed_grams"}
+
+# Abbruch-Flag für die Pausen des Anti-Schling-Modus (feed_until_weight setzt
+# sein eigenes Abort-Flag bei jedem Aufruf zurück - die Pausen brauchen ein
+# Service-eigenes)
+_abort_slow = False
+
+
+def chunked_feed(motor, amount, slow_minutes, progress_cb=None):
+    """Anti-Schling: Portion in kleinen Schüben über slow_minutes verteilen.
+
+    Jeder Schub dosiert sein eigenes Netto-Inkrement über den normalen
+    Regelkreis; zwischen den Schüben wird pausiert (abbruchfähig).
+    Returns (success, message, fed_total).
+    """
+    global _abort_slow
+    _abort_slow = False
+
+    chunks = int(max(2, min(6, amount // 2)))
+    pause_s = (float(slow_minutes) * 60.0) / max(1, chunks - 1)
+    fed_total = 0.0
+
+    for i in range(chunks):
+        if _abort_slow:
+            return False, (f"Fütterung gestoppt: Nur {fed_total:.1f}g gefüttert "
+                           f"(Soll: {amount}g)"), fed_total
+
+        remaining = round(amount - fed_total, 1)
+        if remaining <= 0:
+            break
+        chunk_target = round(min(amount / chunks, remaining), 1) if i < chunks - 1 else remaining
+
+        def cb(fed, _target, elapsed, _base=fed_total):
+            if progress_cb:
+                progress_cb(round(_base + fed, 1), amount, elapsed)
+
+        ok, message, fed = motor.feed_until_weight(
+            target_weight_grams=chunk_target,
+            timeout_seconds=120,
+            progress_cb=cb,
+        )
+        fed_total = round(fed_total + max(0.0, fed), 1)
+        if progress_cb:
+            progress_cb(fed_total, amount, 0.0)
+        if not ok:
+            return False, f"{message} (gesamt {fed_total:.1f}g)", fed_total
+
+        if i < chunks - 1 and fed_total < amount:
+            slept = 0.0
+            while slept < pause_s:
+                if _abort_slow:
+                    return False, (f"Fütterung gestoppt: Nur {fed_total:.1f}g gefüttert "
+                                   f"(Soll: {amount}g)"), fed_total
+                time.sleep(1)
+                slept += 1
+
+    return True, f"{fed_total:.1f}g gefüttert in {chunks} Schüben (Soll: {amount}g)", fed_total
 
 
 def get_active_feeding():
@@ -39,8 +100,8 @@ def _clear_active():
         _active = None
 
 
-def start_manual_feed(amount):
-    """Startet eine manuelle Fütterung asynchron.
+def start_manual_feed(amount, slow_minutes=0):
+    """Startet eine manuelle Fütterung asynchron (optional Anti-Schling).
 
     Returns:
         (ok: bool, error: str|None) - ok=False mit Grund, wenn nicht gestartet
@@ -51,6 +112,10 @@ def start_manual_feed(amount):
         return False, "Ungültige Menge"
     if not (MIN_MANUAL_GRAMS <= amount <= MAX_MANUAL_GRAMS):
         return False, f"Menge muss zwischen {MIN_MANUAL_GRAMS:g} und {MAX_MANUAL_GRAMS:g} g liegen"
+    try:
+        slow_minutes = max(0, min(MAX_SLOW_MINUTES, int(slow_minutes or 0)))
+    except (TypeError, ValueError):
+        slow_minutes = 0
 
     motor = hardware.get_motor()
     weight_sensor = hardware.get_weight_sensor()
@@ -64,11 +129,11 @@ def start_manual_feed(amount):
         return False, "Es läuft bereits eine Fütterung"
 
     _set_active("manual", amount)
-    realtime.socketio.start_background_task(_run_manual_feed, motor, amount)
+    realtime.socketio.start_background_task(_run_manual_feed, motor, amount, slow_minutes)
     return True, None
 
 
-def _run_manual_feed(motor, amount):
+def _run_manual_feed(motor, amount, slow_minutes=0):
     realtime.emit_feeding_started("manual", amount)
     success, message, fed = False, "Unbekannter Fehler", 0.0
     try:
@@ -76,11 +141,14 @@ def _run_manual_feed(motor, amount):
             _update_progress(fed_grams)
             realtime.emit_feeding_progress("manual", fed_grams, target_grams, elapsed_s)
 
-        success, message, fed = motor.feed_until_weight(
-            target_weight_grams=amount,
-            timeout_seconds=FEED_TIMEOUT_SECONDS,
-            progress_cb=progress_cb,
-        )
+        if slow_minutes > 0:
+            success, message, fed = chunked_feed(motor, amount, slow_minutes, progress_cb)
+        else:
+            success, message, fed = motor.feed_until_weight(
+                target_weight_grams=amount,
+                timeout_seconds=FEED_TIMEOUT_SECONDS,
+                progress_cb=progress_cb,
+            )
 
         if fed > 0:
             try:
@@ -104,6 +172,8 @@ def _run_manual_feed(motor, amount):
 
 def stop_feeding():
     """Stoppt jede laufende Fütterung (manuell UND Plan) sowie den Motor."""
+    global _abort_slow
+    _abort_slow = True  # beendet auch Anti-Schling-Pausen
     motor = hardware.get_motor()
     if motor is None:
         return False, "Motor nicht verfügbar"

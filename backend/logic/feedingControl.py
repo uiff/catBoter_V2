@@ -80,6 +80,49 @@ def _prune_attempts_memory():
     for key in [k for k in _attempts_memory if k[2] != today]:
         del _attempts_memory[key]
 
+
+def parse_pause_timestamp(value):
+    """Parst einen Pause-Zeitpunkt robust zu einem naiven lokalen datetime.
+    Akzeptiert auch zeitzonenbehaftete ISO-Strings (z. B. von Home Assistant).
+    Returns None bei unbrauchbaren Werten - NIE eine Exception."""
+    try:
+        parsed = datetime.datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if parsed.tzinfo is not None:
+            parsed = parsed.astimezone().replace(tzinfo=None)
+        return parsed
+    except (ValueError, TypeError):
+        return None
+
+
+def _robust_bowl_reading():
+    """Mehrfach gemessenes Napfgewicht (Median) für Smart-Feed-Entscheidungen.
+    Eine einzelne Fehlmessung (Pfote auf der Waage, Spike) darf keine Mahlzeit
+    streichen. Returns None wenn keine verlässliche Messung möglich."""
+    try:
+        from services import hardware
+        sensor = hardware.get_weight_sensor()
+        if sensor is None:
+            return None
+        samples = []
+        for _ in range(3):
+            try:
+                value = sensor.get_weight()
+            except Exception:
+                value = None
+            if value is not None:
+                samples.append(value)
+            time.sleep(0.4)
+        if len(samples) < 2:
+            return None
+        samples.sort()
+        median = samples[len(samples) // 2]
+        # Plausibilität: mehr als 100 g "Rest" = Katze/Fremdkörper auf der Waage
+        if median > 100:
+            return None
+        return median
+    except ImportError:
+        return None
+
 # Hardware kommt aus der EINEN gemeinsamen Quelle (services.hardware) -
 # vorher existierten zwei MotorController auf denselben GPIO-Pins.
 # Fallback für Standalone-Ausführung (python feedingControl.py) bleibt erhalten.
@@ -145,7 +188,7 @@ def save_feeding_plans(fütterungspläne):
         logging.error(f"Fehler beim Speichern der Fütterungspläne: {e}")
         return False
 
-def execute_feeding(target_weight, timeout_seconds=300):
+def execute_feeding(target_weight, timeout_seconds=300, slow_minutes=0):
     """
     Führt eine einzelne Fütterung aus - thread-safe
     
@@ -180,12 +223,25 @@ def execute_feeding(target_weight, timeout_seconds=300):
                 except Exception:
                     pass
 
-        # feed_until_weight liefert die gefütterte Menge direkt numerisch zurück
-        success, message, fed_amount = motor_controller.feed_until_weight(
-            target_weight_grams=target_weight,
-            timeout_seconds=timeout_seconds,
-            progress_cb=progress_cb
-        )
+        # feed_until_weight liefert die gefütterte Menge direkt numerisch zurück;
+        # bei aktivem Anti-Schling-Modus läuft die Portion in Schüben
+        if slow_minutes and slow_minutes > 0:
+            try:
+                from services.feeding_service import chunked_feed
+                success, message, fed_amount = chunked_feed(
+                    motor_controller, target_weight, slow_minutes, progress_cb)
+            except ImportError:
+                success, message, fed_amount = motor_controller.feed_until_weight(
+                    target_weight_grams=target_weight,
+                    timeout_seconds=timeout_seconds,
+                    progress_cb=progress_cb
+                )
+        else:
+            success, message, fed_amount = motor_controller.feed_until_weight(
+                target_weight_grams=target_weight,
+                timeout_seconds=timeout_seconds,
+                progress_cb=progress_cb
+            )
         logging.info(f"[execute_feeding] Ergebnis: success={success}, message={message}, fed_amount={fed_amount:.1f}g")
 
         if notifier is not None:
@@ -239,8 +295,29 @@ def aktualisiere_fütterungsstatus():
         return False
 
     try:
+        # Urlaubsmodus: Fütterungen pausiert bis paused_until.
+        # WICHTIG: robust gegen zeitzonenbehaftete/kaputte Werte - ein
+        # unvergleichbarer Zeitstempel darf NIE alle Fütterungen blockieren.
+        try:
+            from services import settings_service
+            paused_until = settings_service.get_settings().get("paused_until")
+            if paused_until:
+                until = parse_pause_timestamp(paused_until)
+                if until is None:
+                    logging.warning(f"Ungültiger Pause-Zeitpunkt '{paused_until}' - wird verworfen")
+                    settings_service.update_settings({"paused_until": None})
+                elif datetime.datetime.now() < until:
+                    logging.info(f"Fütterungen pausiert bis {paused_until}")
+                    return True
+                else:
+                    # Pause abgelaufen -> aufräumen
+                    settings_service.update_settings({"paused_until": None})
+                    logging.info("Pause abgelaufen - Fütterungen laufen wieder")
+        except ImportError:
+            pass
+
         logging.info("Starte Fütterungsstatus-Update...")
-        
+
         # Lade aktuelle Fütterungspläne
         fütterungspläne = load_feeding_plans()
         if not fütterungspläne:
@@ -261,24 +338,25 @@ def aktualisiere_fütterungsstatus():
         # Status aller Fütterungen für heute zurücksetzen, falls nicht heute durchgeführt
         # (Änderungen mitspeichern, sonst zeigt das Frontend gestrige Werte für heute an)
         plans_modified = reset_feeding_status_for_today(fütterungspläne, current_day_german, today_date)
+
+        # Fälligkeit ZUERST für alle Fütterungen einsammeln, DANN ausführen:
+        # ein langer Anti-Schling-Feed (bis 15 min) darf nicht dazu führen,
+        # dass eine zweite fällige Fütterung ihr 10-Minuten-Fenster verpasst.
+        due_feedings = []
         for plan in fütterungspläne:
             if not plan.get("active", False):
-                logging.debug(f"Plan {plan['planName']} ist nicht aktiv - überspringe")
                 continue
-
             if current_day_german not in plan["selectedDays"]:
-                logging.debug(f"Plan {plan['planName']} ist nicht für heute vorgesehen - überspringe")
                 continue
+            for fütterung in plan.get("feedingSchedule", {}).get(current_day_german, []):
+                if _is_in_window(fütterung, current_time):
+                    due_feedings.append((fütterung, plan.get("planName", "?"),
+                                         plan.get("slowFeedMinutes", 0)))
 
-            logging.info(f"Verarbeite aktiven Plan: {plan['planName']}")
-
-            # Verarbeite Fütterungen für den aktuellen Tag
-            if current_day_german in plan["feedingSchedule"]:
-                fütterungen = plan["feedingSchedule"][current_day_german]
-                
-                for fütterung in fütterungen:
-                    if process_single_feeding(fütterung, current_time, plan.get("planName", "?")):
-                        plans_modified = True
+        for fütterung, plan_name, slow in due_feedings:
+            if process_single_feeding(fütterung, current_time, plan_name,
+                                      slow_minutes=slow, window_checked=True):
+                plans_modified = True
 
         # Speichere Updates falls Änderungen aufgetreten sind
         if plans_modified:
@@ -300,7 +378,20 @@ def aktualisiere_fütterungsstatus():
     finally:
         feeding_lock.release()
 
-def process_single_feeding(fütterung, current_time, plan_name="?"):
+def _is_in_window(fütterung, current_time):
+    """Liegt die Fütterungszeit im 10-Minuten-Ausführungsfenster?"""
+    try:
+        fütterungszeit = datetime.datetime.strptime(fütterung["time"], "%H:%M").time()
+    except (KeyError, ValueError):
+        return False
+    now_dt = datetime.datetime.combine(datetime.date.today(), current_time)
+    fütterung_dt = datetime.datetime.combine(datetime.date.today(), fütterungszeit)
+    delta_minutes = (now_dt - fütterung_dt).total_seconds() / 60.0
+    return 0 <= delta_minutes <= 10
+
+
+def process_single_feeding(fütterung, current_time, plan_name="?", slow_minutes=0,
+                           window_checked=False):
     """
     Verarbeitet eine einzelne Fütterung
 
@@ -308,14 +399,11 @@ def process_single_feeding(fütterung, current_time, plan_name="?"):
         bool: True wenn Änderungen aufgetreten sind
     """
     try:
-        fütterungszeit = datetime.datetime.strptime(fütterung["time"], "%H:%M").time()
-
-        # Prüfe Zeitbedingungen: Fütterung ist fällig, wenn Zeit <= jetzt und nicht länger als 10 Minuten her
-        now_dt = datetime.datetime.combine(datetime.date.today(), current_time)
-        fütterung_dt = datetime.datetime.combine(datetime.date.today(), fütterungszeit)
-        delta_minutes = (now_dt - fütterung_dt).total_seconds() / 60.0
-        if delta_minutes < 0 or delta_minutes > 10:
-            logging.debug(f"Überspringe Fütterungszeit: {fütterung['time']} (delta_minutes={delta_minutes:.1f})")
+        # Zeitfenster prüfen (entfällt, wenn die Fälligkeit bereits vorab
+        # eingesammelt wurde - die Ausführung eines langen Slow-Feeds davor
+        # darf eine schon als fällig erkannte Fütterung nicht verfallen lassen)
+        if not window_checked and not _is_in_window(fütterung, current_time):
+            logging.debug(f"Überspringe Fütterungszeit: {fütterung.get('time')}")
             return False
 
         # Bereits erfolgreich abgeschlossen?
@@ -347,12 +435,50 @@ def process_single_feeding(fütterung, current_time, plan_name="?"):
             logging.info(f"[process_single_feeding] Zielmenge bereits erreicht ({already_fed}g) - markiere als erledigt")
             return True
 
+        # Smart-Feed: liegt noch Futter im Napf, wird nur die Differenz dosiert.
+        # NUR beim Erstversuch (attempts==0, nichts dosiert) - sonst würde die
+        # eigene Teilausgabe eines Fehlversuchs doppelt abgezogen. Messung als
+        # Median mehrerer Samples (eine Pfote auf der Waage streicht keine
+        # Mahlzeit), und Überspringen ist NICHT terminal: leert die Katze den
+        # Napf noch im 10-Minuten-Fenster, wird normal gefüttert.
+        try:
+            from services import settings_service
+            if (settings_service.get_settings().get("smart_feed", True)
+                    and attempts == 0 and already_fed <= 0):
+                leftovers = _robust_bowl_reading()
+                if leftovers is not None and leftovers > 0.5:
+                    if leftovers >= remaining - 0.9:
+                        # Weniger als 1 g zu dosieren -> diesen Tick überspringen
+                        # (status bleibt offen und wird im Fenster neu bewertet)
+                        already_skipped = fütterung.get("skipped_smart", False)
+                        fütterung["last_attempt"] = datetime.datetime.now().isoformat()
+                        fütterung["message"] = (f"Übersprungen - Napf noch ausreichend "
+                                                f"gefüllt ({leftovers:.1f} g)")
+                        fütterung["skipped_smart"] = True
+                        logging.info(f"[process_single_feeding] Smart-Feed: übersprungen, "
+                                     f"Napf enthält noch {leftovers:.1f} g")
+                        if not already_skipped:
+                            try:
+                                from services import event_log
+                                event_log.log_event("feeding_skipped",
+                                                    f"{fütterung['time']}: Napf noch gefüllt "
+                                                    f"({leftovers:.1f} g)")
+                            except Exception:
+                                pass
+                        return True
+                    remaining = round(remaining - leftovers, 2)
+                    logging.info(f"[process_single_feeding] Smart-Feed: Napf-Rest "
+                                 f"{leftovers:.1f} g angerechnet, dosiere {remaining} g")
+        except ImportError:
+            pass  # Standalone-Betrieb ohne Services
+
         logging.info(f"[process_single_feeding] Starte Fütterung um {fütterung['time']}: "
                      f"Restmenge {remaining}g (Soll {target_weight}g, bereits {already_fed}g), Versuch {attempts + 1}")
 
         success, message, fed_amount = execute_feeding(
             target_weight=remaining,
-            timeout_seconds=300
+            timeout_seconds=300,
+            slow_minutes=slow_minutes
         )
         fed_amount = max(0.0, fed_amount)
 
@@ -418,6 +544,29 @@ def test_motor_immediate(target_weight=200.0):
         error_msg = f"Fehler beim Motor-Test: {e}"
         logging.error(error_msg)
         return False, error_msg
+
+def get_next_feeding_time():
+    """Nächste offene Fütterungszeit des aktiven Plans heute ("HH:MM" oder None)."""
+    try:
+        now = datetime.datetime.now()
+        current_day = translate_day_to_german(now.strftime("%A"))
+        now_minutes = now.hour * 60 + now.minute
+        for plan in load_feeding_plans():
+            if not plan.get("active", False):
+                continue
+            for feeding in plan.get("feedingSchedule", {}).get(current_day, []):
+                if feeding.get("status") is not None:
+                    continue
+                try:
+                    hours, minutes = map(int, feeding["time"].split(":"))
+                except (KeyError, ValueError):
+                    continue
+                if hours * 60 + minutes > now_minutes:
+                    return feeding["time"]
+        return None
+    except Exception:
+        return None
+
 
 def get_feeding_status():
     """

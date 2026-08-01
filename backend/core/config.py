@@ -23,8 +23,30 @@ TANK_DEFAULT_MAX_CM = 23.0
 TANK_LOW_PERCENT = 25
 TANK_EMPTY_PERCENT = 10
 
-# App-Einstellungen (Frontend-relevante Schwellwerte)
+# App-Einstellungen (Frontend-relevante Schwellwerte + Feature-Konfiguration)
 APP_SETTINGS_FILE = DATA_DIR / "app_settings.json"
 APP_SETTINGS_DEFAULTS = {
     "tank_warn_percent": 20,
+    # Smart-Feed: Napf-Reste werden bei Plan-Fütterungen vom Ziel abgezogen
+    "smart_feed": True,
+    # Urlaubsmodus: ISO-Zeitpunkt bis zu dem Plan-Fütterungen pausieren (None = aus)
+    "paused_until": None,
+    # Gesundheits-Monitor: Warnung wenn Napf so viele Stunden unberührt (0 = aus)
+    "untouched_alert_hours": 12,
+    # MQTT-Integration (Home Assistant & Co.)
+    "mqtt": {
+        "enabled": False,
+        "host": "",
+        "port": 1883,
+        "username": "",
+        "password": "",
+    },
+    "ha_discovery": False,
+    # Katzenprofil für den Kalorienrechner
+    "cat_profile": {
+        "weight_kg": None,
+        "age_years": None,
+        "activity": "normal",
+        "kcal_per_100g": None,
+    },
 }

@@ -95,7 +95,7 @@ def state_from_percent(percent):
 
 
 def read_tank(use_cache=True):
-    """Liest den Tank: {distance_cm, percent, state} (distance_cm None bei Sensorfehler)."""
+    """Liest den Tank: {distance_cm, percent, state, range_days}."""
     distance_cm = smart_cache.get("distance", "cm") if use_cache else None
     if distance_cm is None:
         sensor = hardware.get_distance_sensor()
@@ -113,4 +113,95 @@ def read_tank(use_cache=True):
         "distance_cm": distance_cm,
         "percent": percent,
         "state": state_from_percent(percent),
+        "range_days": estimate_range_days(percent),
     }
+
+
+# ---------- Futter-Reichweite (selbstlernend) ----------
+
+STATS_FILE = DATA_DIR / "tank_stats.json"
+MAX_SNAPSHOTS = 60
+_range_cache = {"value": None, "date": None}
+
+
+def record_daily_snapshot(dispensed_today):
+    """1x pro Tag (beim Datumswechsel vom Polling-Loop): Tank-% + Tagesausgabe."""
+    from datetime import date
+    tank = read_tank()
+    if tank["percent"] is None:
+        return
+    with _lock:
+        snapshots = []
+        try:
+            if STATS_FILE.exists():
+                with open(STATS_FILE) as f:
+                    snapshots = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            snapshots = []
+        today = date.today().isoformat()
+        snapshots = [s for s in snapshots if s.get("date") != today]
+        snapshots.append({"date": today, "percent": tank["percent"],
+                          "dispensed": round(float(dispensed_today), 1)})
+        snapshots = snapshots[-MAX_SNAPSHOTS:]
+        try:
+            _atomic_write(STATS_FILE, snapshots)
+        except OSError as e:
+            logging.warning(f"Tank-Statistik konnte nicht gespeichert werden: {e}")
+    _range_cache["value"] = None  # neu berechnen
+
+
+def _grams_per_percent():
+    """Lernt aus den Snapshots, wie viele Gramm ein Tank-Prozent entspricht.
+
+    Segmente zwischen Auffüllungen (Prozent-Anstieg >5 beendet ein Segment):
+    Summe(dispensed) / Summe(Prozent-Abfall).
+    """
+    try:
+        if not STATS_FILE.exists():
+            return None
+        with open(STATS_FILE) as f:
+            snapshots = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return None
+    snapshots = snapshots[-14:]
+    if len(snapshots) < 3:
+        return None
+
+    total_grams = 0.0
+    total_drop = 0.0
+    for prev, curr in zip(snapshots, snapshots[1:]):
+        drop = prev["percent"] - curr["percent"]
+        if drop < -5:
+            continue  # Auffüllung - Übergang nicht werten
+        if drop > 0.2 and curr.get("dispensed", 0) > 0:
+            total_drop += drop
+            total_grams += curr["dispensed"]
+    if total_drop < 2 or total_grams < 10:
+        return None  # noch zu wenig Signal
+    return total_grams / total_drop
+
+
+def estimate_range_days(percent):
+    """Geschätzte Reichweite in Tagen (None solange zu wenig Daten)."""
+    from datetime import date
+    if percent is None or percent <= 0:
+        return None
+    today = date.today().isoformat()
+    if _range_cache["date"] == today and _range_cache["value"] is not None:
+        return _range_cache["value"]
+
+    gpp = _grams_per_percent()
+    if gpp is None:
+        return None
+    try:
+        from services.consumption_manager import consumption_manager
+        avg_daily = consumption_manager.get_stats().get("avg_daily", 0)
+    except Exception:
+        avg_daily = 0
+    if not avg_daily or avg_daily <= 0:
+        return None
+
+    days = round(percent * gpp / avg_daily, 1)
+    _range_cache["value"] = days
+    _range_cache["date"] = today
+    return days

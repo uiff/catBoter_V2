@@ -38,6 +38,23 @@ function summaryFor(item: PlanItem): string {
     } · ${formatGrams(daily)}/Tag`
   }
   const { plan } = item
+  // Alt-Format (anzahlbasiert, z. B. "Ayla Diet Plan"): minFeedings/timeRanges
+  if (plan.minFeedings !== undefined || plan.timeRanges !== undefined) {
+    const range = plan.timeRanges?.[0]
+    const count =
+      plan.minFeedings === plan.maxFeedings || plan.maxFeedings === undefined
+        ? `${plan.minFeedings}×`
+        : `${plan.minFeedings}–${plan.maxFeedings}×`
+    const amount =
+      plan.minAmount !== undefined
+        ? plan.minAmount === (plan.maxAmount ?? plan.minAmount)
+          ? formatGrams(plan.minAmount)
+          : `${plan.minAmount}–${plan.maxAmount} g`
+        : ''
+    return `${count} täglich${amount ? ` · ${amount}/Fütterung` : ''}${
+      range ? ` · ${formatTime(range.start)}–${formatTime(range.end)}` : ''
+    }`
+  }
   return `${formatTime(plan.startTime)}–${formatTime(plan.endTime)} · ${formatGrams(
     plan.dailyWeight,
   )}/Tag · min. ${plan.minInterval} min Abstand`
@@ -56,7 +73,7 @@ export function PlanCard({
   const TypeIcon = item.kind === 'auto' ? Clock : Shuffle
 
   return (
-    <Card className={cn(plan.active && 'border-primary')}>
+    <Card className={cn(plan.active && 'border-success')}>
       <CardContent className="space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
@@ -66,9 +83,13 @@ export function PlanCard({
               {item.kind === 'auto' ? 'Feste Zeiten' : 'Zufällig'}
             </span>
           </div>
-          {plan.active && (
-            <span className="shrink-0 rounded-full bg-primary-soft px-2.5 py-1 text-xs font-medium text-primary">
+          {plan.active ? (
+            <span className="shrink-0 rounded-full bg-success-soft px-2.5 py-1 text-xs font-medium text-success">
               Aktiv
+            </span>
+          ) : (
+            <span className="shrink-0 rounded-full border border-info px-2.5 py-1 text-xs font-medium text-info">
+              Inaktiv
             </span>
           )}
         </div>

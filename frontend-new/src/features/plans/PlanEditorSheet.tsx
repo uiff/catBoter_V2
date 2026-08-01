@@ -1,12 +1,14 @@
 /** Vollhöhen-Sheet zum Erstellen und Bearbeiten von Fütterungsplänen (beide Typen). */
 import { useState } from 'react'
-import { ChevronLeft, Clock, Shuffle } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { ChevronLeft, Clock, Shuffle, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { Sheet } from '@/components/ui/Sheet'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Stepper, Switch } from '@/components/ui/Misc'
 import { api, ApiError } from '@/lib/api'
+import { recommendedGramsPerDay } from '@/lib/calories'
 import { queryClient } from '@/App'
 import { cn } from '@/lib/utils'
 import { ALL_DAYS, type AutoPlan, type RandomPlan, type ScheduledFeeding } from '@/types/feeding'
@@ -112,6 +114,24 @@ function TypeChooser({ onSelect }: { onSelect: (type: PlanType) => void }) {
   )
 }
 
+/* --------------------------- Empfehlungs-Chip --------------------------- */
+
+/** Chip neben der Tagesmenge: übernimmt die aus dem Katzenprofil berechnete Empfehlung. */
+function RecommendationChip({ onApply }: { onApply: (grams: number) => void }) {
+  const settings = useQuery({ queryKey: ['app-settings'], queryFn: api.getAppSettings })
+  const grams = recommendedGramsPerDay(settings.data?.cat_profile)
+  if (grams === null) return null
+  return (
+    <button
+      onClick={() => onApply(grams)}
+      className="tnum mt-2 inline-flex items-center gap-1.5 rounded-full bg-primary-soft px-2.5 py-1 text-xs font-medium text-primary"
+    >
+      <Sparkles className="h-3.5 w-3.5" />
+      Empfehlung ~{grams} g übernehmen
+    </button>
+  )
+}
+
 /* --------------------------- Feste Zeiten (Auto) --------------------------- */
 
 const TIME_DEFAULTS = ['08:00', '12:00', '18:00', '21:00', '06:30', '10:00', '15:00', '23:00']
@@ -130,6 +150,7 @@ function AutoPlanForm({ initial, onDone }: { initial?: AutoPlan; onDone: () => v
   const [times, setTimes] = useState<string[]>(
     initialTimes.length > 0 ? initialTimes : ['08:00', '18:00'],
   )
+  const [slowFeedMinutes, setSlowFeedMinutes] = useState(initial?.slowFeedMinutes ?? 0)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -180,6 +201,7 @@ function AutoPlanForm({ initial, onDone }: { initial?: AutoPlan; onDone: () => v
       weightMode: 'daily',
       dailyWeight,
       active: initial?.active ?? false,
+      slowFeedMinutes,
     }
 
     setSaving(true)
@@ -234,6 +256,7 @@ function AutoPlanForm({ initial, onDone }: { initial?: AutoPlan; onDone: () => v
       <div>
         <p className="pb-2 text-sm font-medium">Tagesmenge</p>
         <Stepper value={dailyWeight} onChange={setDailyWeight} min={10} max={500} step={5} suffix="g" />
+        <RecommendationChip onApply={setDailyWeight} />
       </div>
 
       <div>
@@ -260,6 +283,21 @@ function AutoPlanForm({ initial, onDone }: { initial?: AutoPlan; onDone: () => v
         </div>
       </div>
 
+      <div>
+        <p className="pb-2 text-sm font-medium">Anti-Schling</p>
+        <Stepper
+          value={slowFeedMinutes}
+          onChange={setSlowFeedMinutes}
+          min={0}
+          max={15}
+          step={5}
+          suffix="min"
+        />
+        <p className="pt-1.5 text-xs text-muted-foreground">
+          Portion in Schüben über N Minuten ausgeben (0 = aus)
+        </p>
+      </div>
+
       {error && <p className="text-sm text-danger">{error}</p>}
 
       <Button size="lg" className="w-full" onClick={save} loading={saving}>
@@ -273,13 +311,25 @@ function AutoPlanForm({ initial, onDone }: { initial?: AutoPlan; onDone: () => v
 
 function RandomPlanForm({ initial, onDone }: { initial?: RandomPlan; onDone: () => void }) {
   const [name, setName] = useState(initial?.planName ?? '')
-  const [startTime, setStartTime] = useState(initial ? initial.startTime.slice(0, 5) : '07:00')
-  const [endTime, setEndTime] = useState(initial ? initial.endTime.slice(0, 5) : '21:00')
-  const [dailyWeight, setDailyWeight] = useState(initial?.dailyWeight ?? 60)
+  // Alt-Format-Pläne (timeRanges/minFeedings) sinnvoll ins Formular übersetzen
+  const legacyRange = initial?.timeRanges?.[0]
+  const [startTime, setStartTime] = useState(
+    (initial?.startTime ?? legacyRange?.start ?? '07:00').slice(0, 5),
+  )
+  const [endTime, setEndTime] = useState(
+    (initial?.endTime ?? legacyRange?.end ?? '21:00').slice(0, 5),
+  )
+  const [dailyWeight, setDailyWeight] = useState(
+    initial?.dailyWeight ??
+      (initial?.minFeedings && initial?.minAmount
+        ? Math.round(initial.minFeedings * initial.minAmount)
+        : 60),
+  )
   const [minInterval, setMinInterval] = useState(initial?.minInterval ?? 120)
   const [maxInterval, setMaxInterval] = useState(initial?.maxInterval ?? 300)
   const [minPause, setMinPause] = useState(initial?.minPause ?? 60)
   const [workdaysOnly, setWorkdaysOnly] = useState(initial?.workdaysOnly ?? false)
+  const [slowFeedMinutes, setSlowFeedMinutes] = useState(initial?.slowFeedMinutes ?? 0)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -310,6 +360,7 @@ function RandomPlanForm({ initial, onDone }: { initial?: RandomPlan; onDone: () 
       minPause,
       dailyWeight,
       workdaysOnly,
+      slowFeedMinutes,
     }
 
     setSaving(true)
@@ -359,6 +410,7 @@ function RandomPlanForm({ initial, onDone }: { initial?: RandomPlan; onDone: () 
       <div>
         <p className="pb-2 text-sm font-medium">Tagesmenge</p>
         <Stepper value={dailyWeight} onChange={setDailyWeight} min={10} max={500} step={5} suffix="g" />
+        <RecommendationChip onApply={setDailyWeight} />
       </div>
 
       <div>
@@ -382,6 +434,21 @@ function RandomPlanForm({ initial, onDone }: { initial?: RandomPlan; onDone: () 
           <p className="text-xs text-muted-foreground">Am Wochenende nicht automatisch füttern</p>
         </div>
         <Switch checked={workdaysOnly} onChange={setWorkdaysOnly} label="Nur Wochentage" />
+      </div>
+
+      <div>
+        <p className="pb-2 text-sm font-medium">Anti-Schling</p>
+        <Stepper
+          value={slowFeedMinutes}
+          onChange={setSlowFeedMinutes}
+          min={0}
+          max={15}
+          step={5}
+          suffix="min"
+        />
+        <p className="pt-1.5 text-xs text-muted-foreground">
+          Portion in Schüben über N Minuten ausgeben (0 = aus)
+        </p>
       </div>
 
       {error && <p className="text-sm text-danger">{error}</p>}

@@ -56,7 +56,7 @@ tmp/
 /tmp/
 
 # Data Files (wichtig: sensible Daten nicht committen)
-backend/data/*.json
+backend/data/*
 !backend/data/.gitkeep
 backend/feedingPlan/*.json
 !backend/feedingPlan/.gitkeep

@@ -18,6 +18,8 @@ export interface AutoPlan {
   dailyWeight?: number
   active: boolean
   isRandomGenerated?: boolean
+  /** Anti-Schling: Portion über N Minuten in Schüben ausgeben (0/undefined = aus) */
+  slowFeedMinutes?: number
   /** Frontend-Kompatibilitätsfelder, vom Backend gespiegelt */
   name?: string
   days?: string[]
@@ -26,13 +28,22 @@ export interface AutoPlan {
 export interface RandomPlan {
   planName: string
   active: boolean
-  startTime: string
-  endTime: string
-  minInterval: number
-  maxInterval: number
+  startTime?: string
+  endTime?: string
+  minInterval?: number
+  maxInterval?: number
   minPause?: number
-  dailyWeight: number
+  dailyWeight?: number
   workdaysOnly?: boolean
+  /** Anti-Schling: Portion über N Minuten in Schüben ausgeben (0/undefined = aus) */
+  slowFeedMinutes?: number
+  /** Alt-Format (anzahlbasiert): wird vom Backend weiterhin unterstützt */
+  minFeedings?: number
+  maxFeedings?: number
+  minAmount?: number
+  maxAmount?: number
+  timeRanges?: Array<{ start: string; end: string }>
+  selectedDays?: string[]
 }
 
 export const ALL_DAYS = [

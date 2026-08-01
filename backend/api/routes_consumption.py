@@ -54,6 +54,7 @@ def today_detailed():
                     'type': 'random' if active_plan.get('isRandomGenerated') else 'auto',
                     'status': feeding.get('status'),
                     'planned_amount': feeding.get('weight', 0),
+                    'skipped': bool(feeding.get('skipped_smart', False)),
                 })
 
         for entry in consumption_manager.get_today_feedings():

@@ -359,6 +359,8 @@ def _generate_count_based(plan, german_day):
         'dailyWeight': daily_weight,
         'active': True,
         'isRandomGenerated': True,
+        # Anti-Schling-Einstellung des Random-Plans an den Tagesplan vererben
+        'slowFeedMinutes': plan.get('slowFeedMinutes', 0),
     }
     return temp_plan, feeding_times, None
 
@@ -412,6 +414,8 @@ def _generate_today_plan(plan):
         'dailyWeight': daily_weight,
         'active': True,
         'isRandomGenerated': True,
+        # Anti-Schling-Einstellung des Random-Plans an den Tagesplan vererben
+        'slowFeedMinutes': plan.get('slowFeedMinutes', 0),
     }
     return temp_plan, feeding_times, None
 

@@ -7,7 +7,13 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'prompt',
+      injectManifest: {
+        globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
+      },
       includeAssets: ['catboter-icon.svg', 'brand/iotueli-wordmark.png'],
       manifest: {
         name: 'CatBoter',
@@ -23,23 +29,8 @@ export default defineConfig({
           { src: 'icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-      workbox: {
-        navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api\//, /^\/socket\.io\//],
-        runtimeCaching: [
-          {
-            // Callback statt ^-verankertem RegExp: workbox matcht gegen die
-            // volle URL (beginnt mit http…), ein ^\/api-Pattern griffe nie
-            urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              networkTimeoutSeconds: 3,
-              expiration: { maxEntries: 50, maxAgeSeconds: 300 },
-            },
-          },
-        ],
-      },
+      // Kein workbox-Block: bei injectManifest ist src/sw.ts die einzige
+      // Quelle für Runtime-Caching und Navigation-Fallback
     }),
   ],
   resolve: {

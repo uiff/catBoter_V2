@@ -8,6 +8,8 @@ import { TodayTimeline } from '@/features/dashboard/TodayTimeline'
 import { StatTile } from './StatTile'
 import { TrendChart } from './TrendChart'
 import { SystemStatsCard } from './SystemStatsCard'
+import { EventsCard } from './EventsCard'
+import { HealthCard } from './HealthCard'
 
 type Period = '7' | '30'
 
@@ -26,6 +28,8 @@ function localIsoDate(now: Date): string {
 function reliability(feedings: TodayFeeding[], now: Date) {
   const planned = feedings.filter((feeding) => {
     if (feeding.type === 'manual') return false
+    // Smart-Feed-Übersprungene zählen nicht als fällig (Napf war noch voll)
+    if (feeding.skipped) return false
     if (feeding.status !== null) return true
     const [hours, minutes] = feeding.time.split(':').map(Number)
     const due = new Date(now)
@@ -122,6 +126,10 @@ export default function StatsPage() {
       <TrendChart entries={daily.data} loading={daily.isLoading} todayDate={todayIso} />
 
       <TodayTimeline feedings={today.data?.feedings} loading={today.isLoading} />
+
+      <EventsCard />
+
+      <HealthCard />
 
       <SystemStatsCard stats={systemStats.data} loading={systemStats.isLoading} />
     </div>

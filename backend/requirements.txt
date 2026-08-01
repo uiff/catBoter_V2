@@ -6,3 +6,5 @@ psutil
 RPi.GPIO
 adafruit-circuitpython-vl53l0x
 git+https://github.com/tatobari/hx711py.git
+pywebpush
+paho-mqtt>=2.0

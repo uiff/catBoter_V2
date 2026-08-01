@@ -4,6 +4,8 @@ export interface TankStatus {
   distance_cm: number | null
   percent: number | null
   state: 'ok' | 'low' | 'empty' | 'unknown'
+  /** Geschätzte Reichweite in Tagen (null solange zu wenig Lerndaten) */
+  range_days?: number | null
 }
 
 export interface SensorSnapshot {
@@ -51,6 +53,8 @@ export interface TodayFeeding {
   type: 'auto' | 'random' | 'manual'
   status: boolean | null
   planned_amount: number
+  /** Smart-Feed: übersprungen, weil der Napf noch gefüllt war */
+  skipped?: boolean
 }
 
 export interface TodayDetailed {
@@ -131,6 +135,49 @@ export interface TimeStatus {
   managed_by: 'host'
 }
 
+export interface MqttSettings {
+  enabled: boolean
+  host: string
+  port: number
+  username: string
+  /** Wird vom Backend immer maskiert zurückgegeben */
+  password: string
+}
+
+export interface CatProfile {
+  weight_kg: number | null
+  age_years: number | null
+  activity: 'ruhig' | 'normal' | 'aktiv'
+  kcal_per_100g: number | null
+}
+
 export interface AppSettings {
   tank_warn_percent: number
+  smart_feed: boolean
+  /** ISO-Zeitpunkt bis zu dem Plan-Fütterungen pausieren (null = aktiv) */
+  paused_until: string | null
+  untouched_alert_hours: number
+  mqtt: MqttSettings
+  ha_discovery: boolean
+  cat_profile: CatProfile
+}
+
+export interface HealthStats {
+  recent: Array<{ ts: string; minutes: number; start_weight: number }>
+  avg_minutes: number | null
+  untouched_hours: number
+  bowl_weight: number | null
+}
+
+export interface EventEntry {
+  ts: string
+  type: string
+  detail: string
+  grams?: number
+}
+
+export interface BackupInfo {
+  exists: boolean
+  size?: number
+  created?: string
 }

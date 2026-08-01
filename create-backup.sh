@@ -3,7 +3,7 @@
 # CatBoter Backup Script
 # Seit dem Umbau liegen ALLE Laufzeitdaten als Bind-Mounts im Projektordner
 # (backend/data + backend/feedingPlan) - ein Backup des Projektordners genügt.
-BACKUP_NAME="catboter-backup-$(date +%Y%m%d-%H%M%S)"
+BACKUP_NAME="catboter-backup-full"
 BACKUP_DIR="/home/iotueli/Desktop/$BACKUP_NAME"
 
 echo "Creating backup: $BACKUP_NAME"

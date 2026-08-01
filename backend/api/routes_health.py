@@ -16,8 +16,15 @@ def health():
     return jsonify({
         "status": "online",
         "timestamp": datetime.datetime.now().isoformat(),
-        "version": "3.1",
+        "version": "3.2",
     })
+
+
+@bp.route("/health/stats")
+def health_stats():
+    """Fressverhalten-Statistik für die Gesundheits-Karte."""
+    from services import health_monitor
+    return jsonify(health_monitor.get_stats())
 
 
 @bp.route("/dashboard")

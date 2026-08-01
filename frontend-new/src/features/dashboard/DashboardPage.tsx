@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Container, PawPrint, Scale, Square, TriangleAlert, Utensils } from 'lucide-react'
+import { CalendarClock, Container, PawPrint, Scale, Square, TriangleAlert, Utensils } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { ProgressBar, Skeleton } from '@/components/ui/Misc'
@@ -56,6 +56,15 @@ export default function DashboardPage() {
   const showTankWarning =
     tank?.percent !== null && tank?.percent !== undefined && tank.percent < warnPercent
 
+  // Nächste geplante Fütterung heute (Status offen, Zeit in der Zukunft)
+  const now = new Date()
+  const nowMinutes = now.getHours() * 60 + now.getMinutes()
+  const nextFeeding = today.data?.feedings.find((f) => {
+    if (f.type === 'manual' || f.status !== null) return false
+    const [h, m] = f.time.split(':').map(Number)
+    return h * 60 + m > nowMinutes
+  })
+
   return (
     <div className="space-y-3">
       {/* Hero: Live-Status */}
@@ -85,6 +94,11 @@ export default function DashboardPage() {
                   max={100}
                   colorClass={tankColor(tank?.state)}
                 />
+                {typeof tank?.range_days === 'number' && (
+                  <p className="tnum pt-1 text-xs text-muted-foreground">
+                    reicht noch ~{tank.range_days.toFixed(1).replace(/\.0$/, '')} Tage
+                  </p>
+                )}
               </div>
 
               {/* Napf */}
@@ -108,6 +122,22 @@ export default function DashboardPage() {
                   {formatGrams(snapshot.today_total)}
                 </span>
               </div>
+
+              {/* Nächste geplante Fütterung */}
+              {nextFeeding && !feedingActive && (
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <CalendarClock className="h-4 w-4" />
+                    Nächste Fütterung
+                  </span>
+                  <span className="tnum text-lg font-semibold">
+                    {nextFeeding.time}
+                    <span className="text-sm font-normal text-muted-foreground">
+                      {' '}· {formatGrams(nextFeeding.planned_amount)}
+                    </span>
+                  </span>
+                </div>
+              )}
 
               {/* Laufende Fütterung */}
               {feedingActive && feeding && (
