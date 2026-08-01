@@ -1,369 +1,122 @@
-# 🐱 CatBoter
+# CatBoter V3
 
-> Intelligentes automatisches Fütterungssystem für Haustiere mit Web-Interface
+> Intelligenter Katzenfutterautomat auf Raspberry-Pi-Basis — grammgenaue Fütterung, Mobile-First-App, Notfall-Hotspot.
 
-[![Version](https://img.shields.io/badge/version-3.0-blue.svg)](https://github.com/iotueli/catBoterV3)
-[![Platform](https://img.shields.io/badge/platform-Raspberry%20Pi-red.svg)](https://www.raspberrypi.org/)
+![Platform](https://img.shields.io/badge/platform-Raspberry%20Pi-c51a4a)
+![Backend](https://img.shields.io/badge/backend-Flask%20%2B%20Socket.IO-blue)
+![Frontend](https://img.shields.io/badge/frontend-React%2019%20PWA-61dafb)
 
----
+## Funktionen
 
-## 📖 Was ist CatBoter?
+- **Grammgenaue Fütterung** — geschlossener Regelkreis über Wägezelle: der Motor fördert, bis das Zielgewicht im Napf liegt (mit Stillstands-Erkennung, Not-Aus-Timer und Überfütterungsschutz)
+- **Fütterungspläne** — feste Zeiten (Auto-Plan) oder Zufallszeiten im Zeitfenster (Random-Plan) mit Mindestabstand
+- **Manuelle Fütterung** — Schnellwahl (10/20/30/50 g) oder freie Menge, mit Live-Fortschritt in der App
+- **Live-Dashboard** — Tankfüllstand (%), Napfgewicht, Tagesverbrauch in Echtzeit (Socket.IO)
+- **Statistik** — Tagesverlauf, Durchschnitt, Zuverlässigkeit, Systemwerte
+- **Messbasierte Tank-Kalibrierung** — „Aktuell = voll / leer" per Knopfdruck, ideal für höhenverstellbare Tanks
+- **Notfall-Hotspot** — verliert der CatBoter jede Netzwerkverbindung (WLAN *und* LAN), startet er automatisch den Hotspot `CatBoter-Setup`; über `http://10.0.0.1` ist die volle App erreichbar
+- **PWA** — als App auf dem Homescreen installierbar, Hell-/Dunkel-Design automatisch
 
-Vollautomatisches Fütterungssystem für Haustiere auf Raspberry Pi Basis mit:
-- ⏰ **Automatische Fütterungspläne** mit präziser Gewichtskontrolle
-- 📱 **Web-Interface** für alle Geräte (Desktop/Tablet/Mobile)
-- 📡 **WiFi Fallback** - Automatischer Hotspot bei Verbindungsverlust
-- 📊 **Echtzeit-Monitoring** von Füllstand und Verbrauch
-- 🌐 **Netzwerk-Verwaltung** direkt aus der App
+## Screenshots
 
----
+| Übersicht | Fütterungspläne | Statistik | System |
+|:---:|:---:|:---:|:---:|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Pläne](docs/screenshots/plans.png) | ![Statistik](docs/screenshots/stats.png) | ![Einstellungen](docs/screenshots/settings.png) |
 
-## 🚀 Installation (5 Minuten)
+## Hardware
 
-### Vorbereitung
+| Komponente | Zweck |
+|---|---|
+| Raspberry Pi (3/4, 64-bit) | Steuerung |
+| NEMA17-Schrittmotor + A4988/DRV8825-Treiber | Futterförderung (Schnecke) |
+| Wägezelle + HX711 | Napfgewicht (Regelkreis + Verbrauch) |
+| VL53L0X (Time-of-Flight) | Tankfüllstand |
+| 12-V-Netzteil | Motorversorgung (VMOT) |
 
-**1. Raspberry Pi OS installieren:**
-- **Raspberry Pi Imager** herunterladen: https://www.raspberrypi.com/software/
-- **OS:** Raspberry Pi OS Lite (64-bit) - **Empfohlen** (ohne Desktop spart Ressourcen)
-  - Alternative: Raspberry Pi OS with Desktop (mehr Speicher benötigt)
-- **SD-Karte:** Mindestens 16 GB (32 GB empfohlen)
-- **SSH aktivieren** im Imager (Settings → Enable SSH)
-- **WiFi konfigurieren** im Imager (optional, kann später gemacht werden)
+### Verdrahtung
 
-**2. I2C aktivieren (für VL53L0X Sensor):**
+![Verdrahtungsplan](docs/wiring.svg)
+
+| Signal | BCM-Pin | Modul |
+|---|---|---|
+| DIR | GPIO 26 | Motor-Treiber |
+| STEP | GPIO 21 | Motor-Treiber |
+| ENABLE | GPIO 4 | Motor-Treiber (LOW = aktiv) |
+| DT | GPIO 17 | HX711 |
+| SCK | GPIO 18 | HX711 |
+| SDA / SCL | GPIO 2 / 3 | VL53L0X (I2C) |
+
+**Wichtig:** Alle GND verbinden (Pi, Module, Motor-Netzteil). I2C per `sudo raspi-config` aktivieren.
+
+## Installation
+
 ```bash
-sudo raspi-config
-# Interface Options → I2C → Enable → Reboot
-```
-
-**3. GPIO-Zugriff sicherstellen:**
-```bash
-# User zur gpio-Gruppe hinzufügen
-sudo usermod -a -G gpio $USER
-# Neuanmeldung erforderlich
-```
-
-### Automatisches Setup (Empfohlen)
-
-```bash
-# Repository klonen
-git clone https://github.com/iotueli/catBoterV3.git
+# 1. Repository klonen
+git clone https://github.com/uiff/catBoter_V2.git catBoterV3
 cd catBoterV3
 
-# Setup-Wizard starten
-chmod +x setup-wizard.sh
-./setup-wizard.sh
+# 2. Docker installieren (falls noch nicht vorhanden)
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+
+# 3. Frontend bauen (Node 20+ nötig; alternativ auf dem PC bauen und dist/ kopieren)
+cd frontend-new && npm install && npm run build && cd ..
+
+# 4. WiFi-Fallback-Host-Service installieren (Hotspot-Notfallmodus)
+sudo apt install -y hostapd dnsmasq
+sudo systemctl disable --now hostapd dnsmasq
+sudo cp backend/system/catboter-wifi-fallback.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now catboter-wifi-fallback
+
+# 5. Container starten
+docker compose up -d --build
 ```
 
-**Das war's!** Der Wizard installiert automatisch:
-- ✅ System-Updates
-- ✅ Docker & Docker Compose
-- ✅ I2C Interface (für Sensoren)
-- ✅ CatBoter Container
-- ✅ WiFi Fallback System
-- ✅ Hostname-Konfiguration (optional)
+Die App ist danach unter `http://<pi-ip>/` erreichbar.
 
-### Nach Installation
+## Erste Einrichtung
 
-**WebApp öffnen:**
-```
-http://[RASPBERRY-PI-IP]
-```
+1. **Waage kalibrieren:** System → Waage → „Kalibrieren" — Napf leeren, tarieren, Referenzgewicht (z. B. 100 g) auflegen, Wert eintragen.
+2. **Tank kalibrieren:** System → Tank — bei vollem Tank „Aktuell = voll übernehmen", bei leerem Tank „Aktuell = leer übernehmen", speichern.
+3. **Plan anlegen:** Fütterung → Neu — feste Zeiten oder Zufallsmodus wählen, Tagesmenge festlegen, aktivieren.
 
-IP-Adresse herausfinden: `hostname -I`
+## Notfall-Hotspot
 
----
+Verliert der CatBoter für ~90 Sekunden jede Netzwerkverbindung, startet er automatisch einen eigenen Hotspot:
 
-## ⚡ Schnellstart
+1. Mit dem WLAN **`CatBoter-Setup`** verbinden (Standard-Passwort in System → Notfall-Hotspot konfigurierbar)
+2. `http://10.0.0.1` öffnen → volle App
+3. Unter System → Netzwerk das richtige WLAN suchen und verbinden — der Hotspot schaltet sich danach selbst ab
 
-### 1. Erste Schritte
+Steckt ein LAN-Kabel mit funktionierender Verbindung, bleibt der Hotspot aus (das Gerät ist ja erreichbar).
 
-1. **WebApp öffnen** → `http://[IP]`
-2. **Gewichtssensor kalibrieren** → Einstellungen → Gewichtskalibrierung
-3. **Tankfüllstand kalibrieren** → Einstellungen → Tankfüllstand Kalibrierung
-4. **Fütterungsplan erstellen** → Fütterung → Übersicht → Neuer Plan
-5. **Plan aktivieren** → Aktivieren-Button klicken
-
-### 2. WiFi Fallback (Niemals offline!)
-
-**Bei WiFi-Problemen:**
-1. CatBoter aktiviert automatisch Hotspot nach 90 Sekunden
-2. Verbinde dich mit: **CatBoter-Setup** (Passwort: `catboter123`)
-3. Öffne: `http://10.0.0.1`
-4. Konfiguriere neues WiFi
-5. Hotspot deaktiviert sich automatisch
-
-**Konfiguration:** Einstellungen → WiFi Fallback
-
----
-
-## ✨ Hauptfunktionen
-
-### 🍽️ Fütterungsmanagement
-- **Auto-Pläne:** Feste Zeiten (z.B. 08:00, 12:00, 18:00) - Blau markiert
-- **Random-Pläne:** Zufällige Zeiten in Zeitfenstern - Orange markiert
-- **Manuelle Fütterung:** Schnellbuttons (5g, 10g, 15g) oder benutzerdefiniert
-- **Plan-Übersicht:** Alle Pläne auf einen Blick, schnell wechseln
-- **Notfall-Stop:** Motor-Stopp funktioniert IMMER, auch ohne Netzwerk
-
-### 📊 Monitoring
-- **Dashboard:** Tankfüllstand, Napfgewicht, Tagesverbrauch
-- **Monitoring-Seite:** 7-Tage Trend, Zuverlässigkeit, Konsistenz, Timeline
-- **Statistiken:** Wöchentliche/monatliche Auswertungen
-
-### ⚙️ Einstellungen
-- **Sensoren:** Gewichts- und Tankfüllstand-Kalibrierung (Min/Max Distanz)
-- **Netzwerk:** WiFi, LAN, WiFi Fallback konfigurieren
-- **System:** Zeit/Datum, NTP, Neustart, Herunterfahren
-- **Tankfüllstand:** Visuelle Kalibrierung mit Live-Vorschau (leer/voll)
-
----
-
-## 🔧 Hardware-Anforderungen
-
-### Raspberry Pi
-**Minimum:**
-- **Raspberry Pi 4 Model B** (empfohlen) oder Raspberry Pi 3B+
-- **2 GB RAM** minimum (4 GB empfohlen für flüssige Performance)
-- **16 GB microSD-Karte** minimum (**32 GB empfohlen**)
-  - Class 10 oder besser für schnelle I/O-Operationen
-  - SanDisk oder Samsung empfohlen
-- **Stromversorgung:** 5V/3A USB-C (Pi 4) oder 5V/2.5A Micro-USB (Pi 3)
-
-**Getestet auf:**
-- ✅ Raspberry Pi 4 Model B (4 GB) - **Optimal**
-- ✅ Raspberry Pi 3 Model B+ - Funktioniert, aber langsamer
-- ⚠️ Raspberry Pi Zero 2 W - Möglich, aber sehr langsam beim Docker-Build
-
-### Sensoren & Aktoren
-
-#### 1. **Gewichtssensor (HX711 Load Cell Amplifier)**
-- **Sensor:** HX711 mit 1-5kg Load Cell
-- **GPIO-Pins:**
-  - **DT (Data):** GPIO 5
-  - **SCK (Clock):** GPIO 6
-  - **VCC:** 5V
-  - **GND:** GND
-
-#### 2. **Füllstandssensor (VL53L0X Time-of-Flight)**
-- **Sensor:** VL53L0X ToF Distanzsensor (0-200cm)
-- **Anschluss:** I2C
-  - **SDA:** GPIO 2 (Pin 3)
-  - **SCL:** GPIO 3 (Pin 5)
-  - **VCC:** 3.3V (nicht 5V!)
-  - **GND:** GND
-- **I2C aktivieren:**
-  ```bash
-  sudo raspi-config
-  # Interface Options → I2C → Enable
-  ```
-
-#### 3. **Motor (Futterspender-Antrieb)**
-- **Typ:** Schrittmotor oder Servo
-- **GPIO-Pins:**
-  - **IN1/IN2/IN3/IN4:** GPIO 17, 18, 27, 22 (für Schrittmotor)
-  - Oder **PWM-Pin** GPIO 18 (für Servo)
-  - **VCC:** Externe 5V/12V Stromversorgung (je nach Motor)
-  - **GND:** Gemeinsames GND mit Raspberry Pi
-
-> **⚠️ Wichtig:** Motor benötigt externe Stromversorgung! Niemals direkt vom Pi mit Strom versorgen.
-
-### Optionale Hardware
-- **Externe WiFi-Antenne** (für besseren Empfang)
-- **Gehäuse mit Lüfter** (Pi 4 wird warm bei Docker)
-- **Backup-Powerbank** (für unterbrechungsfreien Betrieb)
-
-### Verkabelungsdiagramm
+## Architektur
 
 ```
-Raspberry Pi 4 GPIO Layout
-┌─────────────────────────────────┐
-│  3.3V  (1) (2)  5V              │  ← Stromversorgung
-│  SDA   (3) (4)  5V              │  ← I2C für VL53L0X
-│  SCL   (5) (6)  GND             │
-│  GPIO4 (7) (8)  GPIO14          │
-│  GND   (9) (10) GPIO15          │
-│  GPIO17(11)(12) GPIO18          │  ← Motor/Servo
-│  GPIO27(13)(14) GND             │
-│  GPIO22(15)(16) GPIO23          │
-│  3.3V  (17)(18) GPIO24          │
-│  GPIO10(19)(20) GND             │
-│  GPIO9 (21)(22) GPIO25          │
-│  GPIO11(23)(24) GPIO8           │
-│  GND   (25)(26) GPIO7           │
-│  GPIO5 (29)(30) GND             │  ← HX711 DT
-│  GPIO6 (31)(32) GPIO12          │  ← HX711 SCK
-│  ...                            │
-└─────────────────────────────────┘
-
-Anschlussplan:
-┌────────────────────────────────────────────────┐
-│ HX711 (Gewichtssensor)                         │
-│  VCC  → Pin 2  (5V)                           │
-│  GND  → Pin 6  (GND)                          │
-│  DT   → Pin 29 (GPIO 5)                       │
-│  SCK  → Pin 31 (GPIO 6)                       │
-└────────────────────────────────────────────────┘
-
-┌────────────────────────────────────────────────┐
-│ VL53L0X (Distanzsensor)                        │
-│  VCC  → Pin 1  (3.3V) ⚠️ NICHT 5V!            │
-│  GND  → Pin 9  (GND)                          │
-│  SDA  → Pin 3  (GPIO 2 / SDA)                 │
-│  SCL  → Pin 5  (GPIO 3 / SCL)                 │
-└────────────────────────────────────────────────┘
-
-┌────────────────────────────────────────────────┐
-│ Schrittmotor (über Treiber-Board)              │
-│  IN1  → GPIO 17                               │
-│  IN2  → GPIO 18                               │
-│  IN3  → GPIO 27                               │
-│  IN4  → GPIO 22                               │
-│  VCC  → Externe 5V/12V Stromquelle            │
-│  GND  → Gemeinsam mit Pi GND                  │
-└────────────────────────────────────────────────┘
+┌─────────────┐  Socket.IO + REST  ┌──────────────────────────────┐
+│  React-PWA  │◄──────────────────►│  Flask-Backend (Container)   │
+│  (nginx)    │                    │  api/ · services/ · core/    │
+└─────────────┘                    │  ├─ feed_until_weight-Regel- │
+                                   │  │  kreis (Motor + Waage)    │
+┌──────────────────────────┐       │  ├─ Scheduler (60-s-Tick)    │
+│ WiFi-Fallback-Service    │◄─────►│  └─ Daten: /app/data (Volume)│
+│ (Host, systemd, nmcli)   │ Datei-└──────────────────────────────┘
+│ Hotspot bei Netzverlust  │  IPC
+└──────────────────────────┘
 ```
 
-> **⚠️ Sicherheitshinweise:**
-> - VL53L0X nur an 3.3V anschließen! 5V zerstört den Sensor
-> - Motor niemals direkt am Pi anschließen - nutze Treiber-Board
-> - Gemeinsames GND für alle Komponenten erforderlich
-> - Externe Stromversorgung für Motor zwingend notwendig
+- **Backend:** Flask + eventlet + Flask-SocketIO, modular (Blueprints/Services), läuft privilegiert im Container (GPIO/I2C)
+- **Frontend:** React 19, Vite, Tailwind, zustand + react-query, eine Socket-Verbindung, Bottom-Tab-Navigation
+- **Persistenz:** alles unter `backend/data/` (Bind-Mount) — Kalibrierungen, Verbrauchshistorie, Konfigurationen überleben jeden Rebuild
+- **Sicherheit der Fütterung:** max. 2 Versuche pro geplanter Fütterung mit Restmengen-Logik, richtungsunabhängige Stillstands-Erkennung (Napf entfernt → Abbruch statt Dauerförderung), Motor-Stopp per `try/finally` auf jedem Pfad
 
----
+## Backup
 
-## 🛠️ Technologie-Stack
-
-**Frontend:** React 18 + TypeScript + Vite + Tailwind CSS + Framer Motion
-**Backend:** Flask + Python 3.11 + RPi.GPIO
-**System:** Docker + Docker Compose + Nginx
-**WiFi:** hostapd + dnsmasq + wpa_supplicant
-
----
-
-## 🐛 Troubleshooting
-
-### Container-Verwaltung
 ```bash
-# Status anzeigen
-sudo docker-compose ps
-
-# Logs ansehen
-sudo docker-compose logs -f
-
-# Container neustarten
-sudo docker-compose restart
-
-# Container neu bauen
-sudo docker-compose up -d --build
-```
-
-### Backend nicht erreichbar
-```bash
-# Health-Check
-curl http://localhost:5000/health
-
-# Backend Logs
-sudo docker-compose logs backend
-```
-
-### Frontend zeigt Fehler
-```bash
-# Frontend neu bauen
-cd frontend-new && npm run build
-
-# Frontend deployen
-sudo docker-compose restart nginx
-```
-
-### WiFi Fallback aktivieren
-```bash
-# Status prüfen
-curl http://localhost:5000/system/wifi_fallback/status
-
-# Manuell aktivieren
-curl -X POST http://localhost:5000/system/wifi_fallback/enable_ap
+./create-backup.sh   # sichert Projekt + alle Laufzeitdaten als tar.gz auf den Desktop
 ```
 
 ---
 
-## 📚 Dokumentation
-
-### Wichtige Dateien
-```
-Config:         backend/data/wifi_fallback_config.json
-Pläne:          backend/feedingPlan/feedingPlans.json
-Kalibrierung:   backend/backend/data/calibration.json
-Tank-Kalibrierung: backend/backend/data/tank_calibration.json
-```
-
-### Wichtige Befehle
-```bash
-# Container Status
-sudo docker-compose ps
-
-# Logs ansehen
-sudo docker-compose logs -f
-
-# Container stoppen
-sudo docker-compose down
-
-# Container starten
-sudo docker-compose up -d
-```
-
----
-
-## 🎯 Quick Reference
-
-### WiFi Fallback
-```
-SSID:      CatBoter-Setup
-Passwort:  catboter123
-WebApp:    http://10.0.0.1
-```
-
-### Standardports
-```
-Frontend:  http://[IP]
-Backend:   http://[IP]:5000
-```
-
----
-
-## 📞 Support
-
-**GitHub Issues:** [github.com/iotueli/catBoterV3/issues](https://github.com/iotueli/catBoterV3/issues)
-**Website:** [www.iotueli.ch](http://www.iotueli.ch)
-
----
-
-## 📄 Lizenz
-
-MIT License - Siehe [LICENSE](LICENSE) für Details
-
----
-
-**Version:** 3.0
-**Stand:** Januar 2026
-**Made with ❤️ for Cats** 🐱
-
----
-
-## 🆕 Änderungen in Version 3.0
-
-### Sicherheit
-- ✅ **Notfall-Stop immer verfügbar** - Motor kann IMMER gestoppt werden, unabhängig von Netzwerkstatus
-- ✅ **Verbesserte Fehlerbehandlung** - Keine falschen 0.0g Fütterungseinträge mehr
-
-### Benutzerfreundlichkeit
-- ✅ **Visuelles Farbschema** - Auto-Pläne (Blau) vs Random-Pläne (Orange)
-- ✅ **Custom Icon** - Neues CatBoter-Logo mit Katze und Napf
-- ✅ **Tankfüllstand-Kalibrierung** - Einfache visuelle Kalibrierung (leer/voll)
-- ✅ **Bessere Sensor-Anzeige** - Korrekte Null-Wert-Behandlung für offline Sensoren
-- ✅ **WiFi-Status-Anzeige** - Zeigt korrekt SSID und IP-Adresse in den Einstellungen
-- ✅ **Kein PWA-Installationspopup** - Web-App läuft optimal im Browser
-
-### Installation
-- ✅ **Automatischer Setup-Wizard** - Vollständige Installation in 5 Minuten
-- ✅ **Hostname-Konfiguration** - Zugriff über http://catboter.local möglich
+*Ein Projekt von [iotueli](https://iotueli.ch)*
