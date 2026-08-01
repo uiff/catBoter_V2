@@ -3,6 +3,7 @@ import { AppearanceCard } from './AppearanceCard'
 import { NotificationsCard } from './NotificationsCard'
 import { FeedingCard } from './FeedingCard'
 import { CatProfileCard } from './CatProfileCard'
+import { CareCard } from './CareCard'
 import { ScaleCard } from './ScaleCard'
 import { TankCard } from './TankCard'
 import { NetworkCard } from './NetworkCard'
@@ -21,6 +22,7 @@ export default function SettingsPage() {
       <NotificationsCard />
       <FeedingCard />
       <CatProfileCard />
+      <CareCard />
       <ScaleCard />
       <TankCard />
       <NetworkCard />

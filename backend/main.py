@@ -124,6 +124,16 @@ def background_sensor_polling():
                     tank_service.record_daily_snapshot(last_total)
                 except Exception as e:
                     logging.warning(f"Tank-Snapshot fehlgeschlagen: {e}")
+                # Tägliche Gesundheits-Checks: Appetit-Trend + fällige Erinnerungen
+                try:
+                    health_monitor.check_appetite_daily()
+                except Exception as e:
+                    logging.warning(f"Appetit-Check fehlgeschlagen: {e}")
+                try:
+                    from services import care_service
+                    care_service.check_reminders_daily()
+                except Exception as e:
+                    logging.warning(f"Erinnerungs-Check fehlgeschlagen: {e}")
                 last_date = today
             last_total = snapshot.get('today_total') or 0.0
         except Exception as e:

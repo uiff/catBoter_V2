@@ -140,6 +140,13 @@ def record_daily_snapshot(dispensed_today):
             snapshots = []
         today = date.today().isoformat()
         snapshots = [s for s in snapshots if s.get("date") != today]
+        # Auffüllung erkennen (Füllstand-Anstieg >5 %) -> Futter-Frische-Datum
+        if snapshots and tank["percent"] - snapshots[-1].get("percent", 0) > 5:
+            try:
+                from services import care_service
+                care_service.note_refill()
+            except Exception as e:
+                logging.debug(f"Refill-Notiz fehlgeschlagen: {e}")
         snapshots.append({"date": today, "percent": tank["percent"],
                           "dispensed": round(float(dispensed_today), 1)})
         snapshots = snapshots[-MAX_SNAPSHOTS:]

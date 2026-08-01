@@ -168,11 +168,38 @@ export interface AppSettings {
   cat_profiles: CatProfiles
 }
 
+export interface AppetiteState {
+  state: 'ok' | 'low' | 'high'
+  baseline: number | null
+  yesterday: number | null
+  streak_low: number
+  streak_high: number
+}
+
 export interface HealthStats {
   recent: Array<{ ts: string; minutes: number; start_weight: number }>
   avg_minutes: number | null
   untouched_hours: number
   bowl_weight: number | null
+  appetite?: AppetiteState
+}
+
+export interface Freshness {
+  food_age_days: number | null
+  food_stale: boolean
+  bowl_clean_days: number | null
+  bowl_due: boolean
+  tank_clean_days: number | null
+  tank_due: boolean
+}
+
+export interface Reminder {
+  id: string
+  title: string
+  cat: string
+  interval_days: number
+  next_due: string
+  last_done: string | null
 }
 
 export interface EventEntry {

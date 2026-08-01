@@ -8,6 +8,8 @@ import type {
   EventEntry,
   FallbackConfig,
   FallbackStatus,
+  Freshness,
+  Reminder,
   MotorStatus,
   MqttSettings,
   NetworkInfo,
@@ -112,6 +114,19 @@ export const api = {
     post<{ success: boolean }>('/push/unsubscribe', { endpoint }),
   pushTest: () => post<{ success: boolean; delivered: number }>('/push/test'),
   getHealthStats: () => get<HealthStats>('/health/stats'),
+
+  // Pflege & Erinnerungen
+  getFreshness: () => get<Freshness>('/care/freshness'),
+  markCleaned: (what: 'bowl' | 'tank') =>
+    post<{ success: boolean } & Freshness>('/care/cleaned', { what }),
+  getReminders: () => get<Reminder[]>('/care/reminders'),
+  addReminder: (reminder: { title: string; interval_days: number; next_due: string; cat?: string }) =>
+    post<{ success: boolean; reminder: Reminder }>('/care/reminders', reminder),
+  reminderDone: (id: string) =>
+    post<{ success: boolean }>(`/care/reminders/${encodeURIComponent(id)}/done`),
+  deleteReminder: (id: string) =>
+    request<{ success: boolean }>(`/care/reminders/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  vetReportUrl: `${API}/care/report`,
 
   // Verlauf / Backup
   getEvents: (days: number) => get<EventEntry[]>(`/events?days=${days}`),
