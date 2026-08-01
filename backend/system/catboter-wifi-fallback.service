@@ -6,8 +6,8 @@ Wants=network.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/app
-ExecStart=/usr/bin/python3 /app/backend/system/wifi_fallback.py
+WorkingDirectory=/home/iotueli/Desktop/catBoterV3
+ExecStart=/usr/bin/python3 /home/iotueli/Desktop/catBoterV3/backend/system/wifi_fallback.py --data-dir /home/iotueli/Desktop/catBoterV3/backend/data
 Restart=always
 RestartSec=10
 
@@ -15,10 +15,6 @@ RestartSec=10
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=catboter-wifi-fallback
-
-# Security
-NoNewPrivileges=false
-PrivateTmp=false
 
 [Install]
 WantedBy=multi-user.target

@@ -1,44 +1,46 @@
-export interface FeedingTime {
+/** Fütterungsplan-Datenmodell (unverändert zum Backend - feedingPlans.json / randomPlans.json). */
+
+export interface ScheduledFeeding {
   time: string
   weight: number
-  status?: boolean
+  status?: boolean | null
+  attempts?: number
+  fed_amount?: number
   last_attempt?: string
   message?: string
-  fed_amount?: number
-}
-
-export interface FeedingSchedule {
-  [day: string]: FeedingTime[]
 }
 
 export interface AutoPlan {
   planName: string
   selectedDays: string[]
-  feedingSchedule: FeedingSchedule
-  weightMode: 'daily' | 'custom'
+  feedingSchedule: Record<string, ScheduledFeeding[]>
+  weightMode?: 'daily' | 'manual'
   dailyWeight?: number
   active: boolean
-}
-
-export interface TimeRange {
-  start: string
-  end: string
+  isRandomGenerated?: boolean
+  /** Frontend-Kompatibilitätsfelder, vom Backend gespiegelt */
+  name?: string
+  days?: string[]
 }
 
 export interface RandomPlan {
   planName: string
   active: boolean
-  minFeedings: number
-  maxFeedings: number
-  minAmount: number
-  maxAmount: number
-  timeRanges: TimeRange[]
-  selectedDays?: string[]  // Optional, may not be in all plans
+  startTime: string
+  endTime: string
+  minInterval: number
+  maxInterval: number
+  minPause?: number
+  dailyWeight: number
+  workdaysOnly?: boolean
 }
 
-export type FeedingPlan = AutoPlan | RandomPlan
-
-export interface ManualFeedRequest {
-  weight: number
-  duration?: number
-}
+export const ALL_DAYS = [
+  'Montag',
+  'Dienstag',
+  'Mittwoch',
+  'Donnerstag',
+  'Freitag',
+  'Samstag',
+  'Sonntag',
+] as const

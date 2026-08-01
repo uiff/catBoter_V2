@@ -15,10 +15,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     git \
     # Runtime Dependencies (bleiben im Image)
-    libgpiod2 \
     i2c-tools \
     curl \
-    # Network Tools für WiFi-Status
+    # Network Tools: iwgetid/iwlist (wireless-tools), ip (iproute2), wpa_cli (wpasupplicant)
     wireless-tools \
     iproute2 \
     wpasupplicant \

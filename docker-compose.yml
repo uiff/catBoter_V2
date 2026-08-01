@@ -1,19 +1,25 @@
 version: '3.8'
 
 services:
-  # Nginx Reverse Proxy
+  # Nginx Reverse Proxy - serviert das vorgebaute Frontend direkt aus dist/
+  # (kein Frontend-Container/Volume mehr: Named Volumes wurden nur beim ersten
+  # Start befüllt und servierten danach für immer den alten Stand)
   nginx:
     image: nginx:alpine
     container_name: catboter_nginx
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - frontend_dist:/usr/share/nginx/html:ro
+      - ./frontend-new/dist:/usr/share/nginx/html:ro
     depends_on:
       - backend
-      - frontend
     network_mode: host
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # Backend Service (Flask)
   backend:
@@ -23,26 +29,31 @@ services:
     container_name: catboter_backend
     environment:
       - FLASK_ENV=production
-      - FLASK_APP=main.py
       - PYTHONUNBUFFERED=1
+      # Alle Laufzeitdaten (Kalibrierungen, Verbrauch, Configs) liegen im Volume
+      - CATBOTER_DATA_DIR=/app/data
     volumes:
       - ./backend/data:/app/data
       - ./backend/feedingPlan:/app/feedingPlan
-      - ./backend/kalibrierung.json:/app/kalibrierung.json
-      - ./backend/schedule.json:/app/schedule.json
       # GPIO und Hardware Zugriff für Raspberry Pi
       - /sys:/sys
       - /dev:/dev
       # D-Bus für NetworkManager Zugriff
       - /var/run/dbus:/var/run/dbus:ro
-      # Netzwerk Konfiguration
-      - /etc/network/interfaces:/etc/network/interfaces:ro
-      - /etc/wpa_supplicant:/etc/wpa_supplicant:ro
+      # WLAN: wpa_cli braucht Control-Socket und schreibbare Config (save_config)
+      - /var/run/wpa_supplicant:/var/run/wpa_supplicant
+      - /etc/wpa_supplicant:/etc/wpa_supplicant
     privileged: true
     devices:
       - /dev/gpiomem:/dev/gpiomem
     network_mode: host
     restart: unless-stopped
+    # Log-Rotation: ohne Limit wuchs das Backend-Log auf 946 MB (98% volle SD-Karte)
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
@@ -50,23 +61,5 @@ services:
       retries: 3
       start_period: 40s
 
-  # Frontend Service (Vite + React)
-  frontend:
-    build:
-      context: ./frontend-new
-      dockerfile: Dockerfile
-      target: production
-    container_name: catboter_frontend
-    volumes:
-      - frontend_dist:/usr/share/nginx/html
-    networks:
-      - catboter_network
 
-networks:
-  catboter_network:
-    driver: bridge
 
-volumes:
-  backend_data:
-  feeding_plans:
-  frontend_dist:

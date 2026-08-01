@@ -1,0 +1,76 @@
+import { CircleCheck, CircleX, Clock, Hand, PawPrint, Shuffle, Timer } from 'lucide-react'
+import { Card, CardContent, CardHeader } from '@/components/ui/Card'
+import { EmptyState, Skeleton } from '@/components/ui/Misc'
+import { formatGrams, formatTime } from '@/lib/format'
+import type { TodayFeeding } from '@/types/api'
+import { cn } from '@/lib/utils'
+
+interface TodayTimelineProps {
+  feedings: TodayFeeding[] | undefined
+  loading: boolean
+}
+
+function statusFor(feeding: TodayFeeding, now: Date) {
+  if (feeding.type === 'manual') return 'done'
+  if (feeding.status === true) return 'done'
+  if (feeding.status === false) return 'failed'
+  const [h, m] = feeding.time.split(':').map(Number)
+  const due = new Date(now)
+  due.setHours(h, m, 0, 0)
+  return due <= now ? 'overdue' : 'pending'
+}
+
+const TYPE_META = {
+  auto: { label: 'Plan', icon: Clock },
+  random: { label: 'Zufall', icon: Shuffle },
+  manual: { label: 'Manuell', icon: Hand },
+} as const
+
+export function TodayTimeline({ feedings, loading }: TodayTimelineProps) {
+  const now = new Date()
+
+  return (
+    <Card>
+      <CardHeader title="Heute" icon={<Clock className="h-4 w-4" />} />
+      <CardContent className="pt-3">
+        {loading && !feedings ? (
+          <div className="space-y-2">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </div>
+        ) : !feedings || feedings.length === 0 ? (
+          <EmptyState icon={PawPrint} title="Heute noch keine Fütterung" />
+        ) : (
+          <ul className="divide-y divide-border">
+            {feedings.map((feeding, index) => {
+              const status = statusFor(feeding, now)
+              const meta = TYPE_META[feeding.type]
+              const TypeIcon = meta.icon
+              return (
+                <li key={`${feeding.time}-${index}`} className="flex items-center gap-3 py-2.5">
+                  {status === 'done' && <CircleCheck className="h-5 w-5 shrink-0 text-success" />}
+                  {status === 'failed' && <CircleX className="h-5 w-5 shrink-0 text-danger" />}
+                  {status === 'pending' && <Timer className="h-5 w-5 shrink-0 text-muted-foreground" />}
+                  {status === 'overdue' && <Timer className="h-5 w-5 shrink-0 text-warning" />}
+
+                  <span className="tnum w-12 font-medium">{formatTime(feeding.time)}</span>
+
+                  <span className="flex items-center gap-1 rounded-full bg-surface-2 px-2 py-0.5 text-xs text-muted-foreground">
+                    <TypeIcon className="h-3 w-3" />
+                    {meta.label}
+                  </span>
+
+                  <span className={cn('tnum ml-auto text-sm', status === 'pending' && 'text-muted-foreground')}>
+                    {status === 'done' || status === 'failed'
+                      ? formatGrams(feeding.amount)
+                      : `geplant ${formatGrams(feeding.planned_amount)}`}
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  )
+}

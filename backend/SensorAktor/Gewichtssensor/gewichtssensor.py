@@ -26,9 +26,12 @@ class Gewichtssensor:
         self._lock = threading.Lock()
         self._initialized = False
 
-        # Verzeichnis des aktuellen Skripts und Kalibrierungsdateipfad
+        # Kalibrierungsdatei: bevorzugt im Daten-Volume (CATBOTER_DATA_DIR,
+        # im Container /app/data - überlebt Rebuilds); Fallback wie bisher
+        # neben dem Modul (Standalone-Betrieb bleibt unverändert)
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
-        self.calibration_file = os.path.join(self.base_dir, 'kalibrierung.json')
+        data_dir = os.environ.get('CATBOTER_DATA_DIR', self.base_dir)
+        self.calibration_file = os.path.join(data_dir, 'kalibrierung.json')
 
         GPIO.setwarnings(False)
         GPIO.setmode(GPIO.BCM)
@@ -58,6 +61,25 @@ class Gewichtssensor:
         self._initialized = True
 
     def load_calibration(self):
+        # Einmalige Migration: liegt am neuen Pfad (Daten-Volume) noch keine
+        # Kalibrierung, aber am alten Pfad neben dem Modul, wird sie übernommen -
+        # sonst wäre die Waage nach dem ersten Deploy unkalibriert und JEDE
+        # Fütterung würde mit "Sensor nicht bereit" abbrechen.
+        legacy_file = os.path.join(self.base_dir, 'kalibrierung.json')
+        if (not os.path.exists(self.calibration_file)
+                and legacy_file != self.calibration_file
+                and os.path.exists(legacy_file)):
+            try:
+                with open(legacy_file, 'r') as f:
+                    data = json.load(f)
+                self.reference_unit = data['reference_unit']
+                self.offset = data['offset']
+                self.save_calibration()
+                logging.info(f"[LOAD CALIBRATION] Kalibrierung vom alten Pfad migriert: {legacy_file} -> {self.calibration_file}")
+                return
+            except Exception as e:
+                logging.warning(f"[LOAD CALIBRATION] Migration fehlgeschlagen: {e}")
+
         try:
             with open(self.calibration_file, 'r') as f:
                 data = json.load(f)

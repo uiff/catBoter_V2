@@ -1,5 +1,0 @@
-Motor Stopp:
-curl -X POST -H "Content-Type: application/json" -d '{"action": "stop"}' http://localhost:5000/motor
-
-Motor Start:
-curl -X POST -H "Content-Type: application/json" -d '{"action": "rotate"}' http://localhost:5000/motor

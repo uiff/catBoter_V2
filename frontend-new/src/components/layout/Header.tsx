@@ -1,37 +1,29 @@
-import { Menu, Wifi, WifiOff } from 'lucide-react'
+import { Wifi, WifiOff } from 'lucide-react'
+import { useConnection } from '@/stores/socketStore'
+import { cn } from '@/lib/utils'
+import { BrandLogo } from './BrandLogo'
 
-interface HeaderProps {
-  title: string
-  isConnected: boolean
-  onMenuClick?: () => void
-}
+export function Header() {
+  const connection = useConnection()
+  const online = connection === 'online'
 
-export function Header({ title, isConnected, onMenuClick }: HeaderProps) {
   return (
-    <header className="glass border-b border-border px-6 py-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          {onMenuClick && (
-            <button onClick={onMenuClick} className="md:hidden">
-              <Menu className="w-6 h-6" />
-            </button>
-          )}
-          <h2 className="text-2xl font-bold">{title}</h2>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {isConnected ? (
-            <div className="flex items-center gap-2 text-green-500">
-              <Wifi className="w-4 h-4" />
-              <span className="text-xs font-medium">Verbunden</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 text-red-500">
-              <WifiOff className="w-4 h-4" />
-              <span className="text-xs font-medium">Offline</span>
-            </div>
-          )}
-        </div>
+    <header
+      className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-surface/95 px-4 pt-safe backdrop-blur md:hidden"
+      style={{ minHeight: 'var(--header-h)' }}
+    >
+      <BrandLogo className="h-[18px] text-foreground" />
+      <div
+        className={cn(
+          'flex items-center gap-1.5 text-xs font-medium',
+          online ? 'text-success' : 'text-danger',
+        )}
+        title={online ? 'Verbunden' : 'Keine Verbindung'}
+      >
+        {online ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
+        <span
+          className={cn('h-2 w-2 rounded-full', online ? 'bg-success' : 'bg-danger animate-pulse')}
+        />
       </div>
     </header>
   )

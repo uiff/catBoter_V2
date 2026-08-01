@@ -4,153 +4,132 @@
 
 @layer base {
   :root {
-    --background: 0 0% 4%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 7%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 7%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 188 94% 43%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 260 60% 65%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 15%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 188 94% 43%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 15%;
-    --input: 0 0% 15%;
-    --ring: 188 94% 43%;
-    --radius: 0.5rem;
-  }
-}
+    /* Flächen (hell) */
+    --background: 210 20% 98%;
+    --surface: 0 0% 100%;
+    --surface-2: 210 17% 95%;
+    --foreground: 222 24% 12%;
+    --muted-foreground: 220 10% 42%;
+    --border: 214 15% 88%;
+    --input: 214 15% 88%;
+    --ring: 192 91% 36%;
 
-@layer base {
+    /* Marke */
+    --primary: 192 91% 36%;
+    --primary-foreground: 0 0% 100%;
+    --primary-soft: 192 80% 94%;
+
+    /* Semantische Status */
+    --success: 152 60% 36%;
+    --success-soft: 150 55% 93%;
+    --warning: 36 92% 44%;
+    --warning-soft: 42 95% 92%;
+    --danger: 0 72% 46%;
+    --danger-soft: 0 80% 95%;
+    --info: 212 90% 46%;
+    --info-soft: 212 90% 94%;
+
+    /* Charts */
+    --chart-1: 192 91% 36%;
+    --chart-2: 212 90% 46%;
+    --chart-3: 262 60% 55%;
+    --chart-grid: 214 15% 90%;
+
+    --radius: 0.75rem;
+    --shadow-card: 0 1px 2px hsl(220 30% 10% / 0.06), 0 1px 1px hsl(220 30% 10% / 0.04);
+    --header-h: 56px;
+    --tabbar-h: 56px;
+
+    color-scheme: light;
+  }
+
+  .dark {
+    --background: 222 18% 7%;
+    --surface: 222 16% 11%;
+    --surface-2: 222 14% 15%;
+    --foreground: 210 20% 96%;
+    --muted-foreground: 217 12% 62%;
+    --border: 220 12% 20%;
+    --input: 220 12% 20%;
+    --ring: 188 94% 43%;
+
+    --primary: 188 94% 43%;
+    --primary-foreground: 222 20% 8%;
+    --primary-soft: 190 60% 16%;
+
+    --success: 152 55% 45%;
+    --success-soft: 152 40% 14%;
+    --warning: 38 92% 55%;
+    --warning-soft: 38 60% 14%;
+    --danger: 0 84% 60%;
+    --danger-soft: 0 45% 15%;
+    --info: 210 95% 62%;
+    --info-soft: 212 50% 16%;
+
+    --chart-1: 188 94% 43%;
+    --chart-2: 210 95% 62%;
+    --chart-3: 262 70% 68%;
+    --chart-grid: 220 12% 18%;
+    --shadow-card: none;
+
+    color-scheme: dark;
+  }
+
   * {
     @apply border-border;
   }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
-    @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    @apply bg-background text-foreground antialiased;
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    overscroll-behavior-y: none;
+  }
+
+  /* Messwerte immer mit Tabellenziffern */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  input[type='time'],
+  input[type='date'] {
+    color-scheme: light dark;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
   }
 }
 
 @layer utilities {
-  .glass {
-    @apply bg-white/5 backdrop-blur-md border border-white/10;
+  /* Safe-Area-Unterstützung (Notch, Home-Indicator) */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
   }
-
-  .glass-hover {
-    @apply transition-all hover:bg-white/10 hover:border-white/20;
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
   }
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(6, 182, 212, 0.5);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(6, 182, 212, 0.7);
-}
-
-/* Smooth animations */
-* {
-  scroll-behavior: smooth;
-}
-
-/* Time input styling - make clock icon visible */
-input[type="time"] {
-  color-scheme: dark !important;
-}
-
-input[type="time"]::-webkit-calendar-picker-indicator {
-  filter: invert(1) brightness(3) !important;
-  cursor: pointer !important;
-  opacity: 1 !important;
-  width: 20px !important;
-  height: 20px !important;
-  background: none !important;
-  color: white !important;
-}
-
-input[type="time"]::-webkit-calendar-picker-indicator:hover {
-  opacity: 1 !important;
-  filter: invert(1) brightness(4) !important;
-}
-
-/* Additional styling for better visibility */
-input[type="time"]::-moz-calendar-picker-indicator {
-  filter: invert(1) brightness(3) !important;
-  cursor: pointer !important;
-  opacity: 1 !important;
-  width: 20px !important;
-  height: 20px !important;
-}
-
-/* Mobile Touch Optimizations */
+/* Touch-Geräte: Mindestgröße für Tap-Targets */
 @media (hover: none) and (pointer: coarse) {
-  /* Improve touch target sizes (minimum 44x44px recommended) */
   button,
-  a,
-  input[type="checkbox"],
-  input[type="radio"],
-  select {
+  [role='button'] {
     min-height: 44px;
-    min-width: 44px;
   }
-
-  /* Remove hover effects on touch devices */
-  .glass-hover:hover {
-    @apply bg-white/5 border-white/10;
-  }
-
-  /* Improve tap feedback with active states */
   button:active,
-  .glass:active {
+  [role='button']:active {
     transform: scale(0.98);
-    transition: transform 0.1s ease;
   }
-
-  /* Prevent text selection during touch interactions */
-  * {
-    -webkit-tap-highlight-color: transparent;
-    -webkit-touch-callout: none;
-  }
-
-  /* Make touch scrolling smoother */
-  * {
-    -webkit-overflow-scrolling: touch;
-  }
-}
-
-/* Pull-to-refresh prevention */
-body {
-  overscroll-behavior-y: contain;
-}
-
-/* Improve button tap targets */
-button {
-  touch-action: manipulation;
-}
-
-/* Better focus states for accessibility */
-button:focus-visible,
-a:focus-visible,
-input:focus-visible,
-select:focus-visible {
-  outline: 2px solid hsl(var(--primary));
-  outline-offset: 2px;
 }

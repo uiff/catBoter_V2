@@ -27,36 +27,79 @@ sys.path.append(str(gewichts_path))
 from SensorAktor.Motor.motor_control import MotorController
 from SensorAktor.Gewichtssensor.gewichtssensor import Gewichtssensor
 
-# Import ConsumptionManager für Tracking
+# Import ConsumptionManager für Tracking (aus services/).
+# Breiter Exception-Guard: ein Fehler bei der Modul-Initialisierung (z. B. OSError
+# auf vollem/read-only Dateisystem) darf die Fütterungslogik nicht mitreißen -
+# Tracking degradiert dann einfach zu einem geloggten Warning.
+consumption_manager = None
 try:
-    from backend.data.consumption_manager import consumption_manager
-except ImportError:
-    # Fallback für direkte Ausführung
     sys.path.append(str(BASE_DIR.parent))
-    from data.consumption_manager import consumption_manager
+    from services.consumption_manager import consumption_manager
+except Exception as e:
+    logging.error(f"ConsumptionManager nicht verfügbar - Tracking deaktiviert: {e}")
+
+# Optionaler Notifier für Realtime-Events (wird von main.py verdrahtet, damit
+# Plan-Fütterungen live im Frontend erscheinen - kein socketio-Import hier,
+# das hielte die Logik testbar und zirkularfrei)
+_feeding_notifier = None
+
+def set_feeding_notifier(notifier):
+    """notifier: Objekt mit started(source, target), progress(source, fed, target, elapsed),
+    completed(source, success, aborted, fed, target, message) - alle optional best-effort."""
+    global _feeding_notifier
+    _feeding_notifier = notifier
 
 # FeedingPlan liegt in backend/feedingPlan
 FEEDING_PLAN_DIR = BASE_DIR.parent / "feedingPlan"
 FEEDING_PLAN_FILE = FEEDING_PLAN_DIR / "feedingPlans.json"
 
-# Thread-Sicherheit für Feeding-Operationen
-feeding_lock = threading.Lock()
+# Thread-Sicherheit für Feeding-Operationen: EIN gemeinsamer Lock für
+# Plan-Scheduler UND manuelle Fütterung (aus core.locks; Fallback für
+# Standalone-Ausführung ohne Paketkontext)
+try:
+    from core.locks import feeding_lock
+except ImportError:
+    feeding_lock = threading.Lock()
 
-# Globale Instanzen (werden thread-safe initialisiert)
+# Maximale Fütterungsversuche pro geplanter Fütterung (verhindert Überfütterung
+# durch endlose Retries im 10-Minuten-Fenster)
+MAX_FEEDING_ATTEMPTS = 2
+
+# In-Memory-Backstop für den Retry-Schutz: Schlägt das Speichern der Plan-JSON fehl
+# (SD-Karte voll/read-only), stünde beim nächsten Scheduler-Tick wieder attempts=0
+# in der Datei - dieses Dict hält Versuche und gefütterte Mengen zusätzlich im RAM.
+# Key: (plan_name, fütterungszeit, datum)
+_attempts_memory = {}
+
+def _memory_key(plan_name, feeding_time):
+    return (plan_name, feeding_time, datetime.date.today().isoformat())
+
+def _prune_attempts_memory():
+    """Entfernt Einträge vergangener Tage"""
+    today = datetime.date.today().isoformat()
+    for key in [k for k in _attempts_memory if k[2] != today]:
+        del _attempts_memory[key]
+
+# Hardware kommt aus der EINEN gemeinsamen Quelle (services.hardware) -
+# vorher existierten zwei MotorController auf denselben GPIO-Pins.
+# Fallback für Standalone-Ausführung (python feedingControl.py) bleibt erhalten.
 _gewichtssensor = None
 _motor_controller = None
 
 def get_sensor_instances():
-    """Thread-sichere Singleton-Instanzen für Sensoren"""
+    """Singleton-Instanzen für Sensoren (delegiert an services.hardware)"""
     global _gewichtssensor, _motor_controller
-    
-    if _gewichtssensor is None:
-        _gewichtssensor = Gewichtssensor()
-    
-    if _motor_controller is None:
-        _motor_controller = MotorController(_gewichtssensor)
-    
-    return _gewichtssensor, _motor_controller
+
+    try:
+        from services import hardware
+        return hardware.get_weight_sensor(), hardware.get_motor()
+    except ImportError:
+        # Standalone-Betrieb ohne Paketkontext
+        if _gewichtssensor is None:
+            _gewichtssensor = Gewichtssensor()
+        if _motor_controller is None:
+            _motor_controller = MotorController(_gewichtssensor)
+        return _gewichtssensor, _motor_controller
 
 # Funktion zur Übersetzung der Wochentage ins Deutsche
 def translate_day_to_german(day):
@@ -122,24 +165,36 @@ def execute_feeding(target_weight, timeout_seconds=300):
         return False, "Gewichtssensor nicht bereit", 0.0
     
     try:
-        # Verwende die neue synchrone Fütterungsmethode
-        success, message = motor_controller.feed_until_weight(
-            target_weight_grams=target_weight,
-            timeout_seconds=timeout_seconds
-        )
-        logging.info(f"[execute_feeding] Ergebnis: success={success}, message={message}")
-        
-        # Extrahiere gefütterte Menge aus der Nachricht
-        fed_amount = 0.0
-        if "gefüttert" in message:
+        # Realtime-Events (best-effort, ohne die Fütterung zu gefährden)
+        notifier = _feeding_notifier
+        progress_cb = None
+        if notifier is not None:
             try:
-                # Extrahiere Zahl vor "g gefüttert"
-                parts = message.split("g gefüttert")[0].split(":")
-                if len(parts) > 1:
-                    fed_amount = float(parts[-1].strip().replace("g", ""))
-            except Exception as e:
-                logging.warning(f"[execute_feeding] Fehler beim Extrahieren der gefütterten Menge: {e}")
-        
+                notifier.started("plan", target_weight)
+            except Exception:
+                pass
+
+            def progress_cb(fed_grams, target_grams, elapsed_s):
+                try:
+                    notifier.progress("plan", fed_grams, target_grams, elapsed_s)
+                except Exception:
+                    pass
+
+        # feed_until_weight liefert die gefütterte Menge direkt numerisch zurück
+        success, message, fed_amount = motor_controller.feed_until_weight(
+            target_weight_grams=target_weight,
+            timeout_seconds=timeout_seconds,
+            progress_cb=progress_cb
+        )
+        logging.info(f"[execute_feeding] Ergebnis: success={success}, message={message}, fed_amount={fed_amount:.1f}g")
+
+        if notifier is not None:
+            try:
+                notifier.completed("plan", success, "gestoppt" in message.lower(),
+                                   max(fed_amount, 0.0), target_weight, message)
+            except Exception:
+                pass
+
         return success, message, fed_amount
         
     except Exception as e:
@@ -149,9 +204,13 @@ def execute_feeding(target_weight, timeout_seconds=300):
 
 def reset_feeding_status_for_today(fütterungspläne, current_day_german, today_date):
     """
-    Setzt den Status aller Fütterungen für den aktuellen Tag zurück, 
+    Setzt den Status aller Fütterungen für den aktuellen Tag zurück,
     wenn sie nicht heute durchgeführt wurden.
+
+    Returns:
+        bool: True wenn Änderungen aufgetreten sind (müssen gespeichert werden)
     """
+    modified = False
     for plan in fütterungspläne:
         if not plan.get("active", False):
             continue
@@ -162,7 +221,13 @@ def reset_feeding_status_for_today(fütterungspläne, current_day_german, today_
                 last_attempt = fütterung.get("last_attempt")
                 # Status auf None (Ausstehend) zurücksetzen, wenn keine Fütterung heute
                 if not last_attempt or last_attempt[:10] != today_date:
+                    if (fütterung.get("status") is not None
+                            or fütterung.get("attempts") or fütterung.get("fed_amount")):
+                        modified = True
                     fütterung["status"] = None
+                    fütterung["attempts"] = 0
+                    fütterung["fed_amount"] = 0.0
+    return modified
 
 def aktualisiere_fütterungsstatus():
     """
@@ -190,11 +255,12 @@ def aktualisiere_fütterungsstatus():
         
         logging.info(f"Aktueller Tag: {current_day_german}, Aktuelle Zeit: {current_time}")
 
-        # Status aller Fütterungen für heute zurücksetzen, falls nicht heute durchgeführt
-        reset_feeding_status_for_today(fütterungspläne, current_day_german, today_date)
+        # Alte In-Memory-Einträge vergangener Tage aufräumen
+        _prune_attempts_memory()
 
-        # Verarbeite alle aktiven Pläne
-        plans_modified = False
+        # Status aller Fütterungen für heute zurücksetzen, falls nicht heute durchgeführt
+        # (Änderungen mitspeichern, sonst zeigt das Frontend gestrige Werte für heute an)
+        plans_modified = reset_feeding_status_for_today(fütterungspläne, current_day_german, today_date)
         for plan in fütterungspläne:
             if not plan.get("active", False):
                 logging.debug(f"Plan {plan['planName']} ist nicht aktiv - überspringe")
@@ -211,13 +277,18 @@ def aktualisiere_fütterungsstatus():
                 fütterungen = plan["feedingSchedule"][current_day_german]
                 
                 for fütterung in fütterungen:
-                    if process_single_feeding(fütterung, current_time):
+                    if process_single_feeding(fütterung, current_time, plan.get("planName", "?")):
                         plans_modified = True
 
         # Speichere Updates falls Änderungen aufgetreten sind
         if plans_modified:
-            save_feeding_plans(fütterungspläne)
-            logging.info("Fütterungsstatus erfolgreich aktualisiert.")
+            if save_feeding_plans(fütterungspläne):
+                logging.info("Fütterungsstatus erfolgreich aktualisiert.")
+            else:
+                # Nicht kritisch für den Überfütterungsschutz: _attempts_memory
+                # hält Versuche/Mengen zusätzlich im RAM
+                logging.error("Fütterungsstatus konnte NICHT gespeichert werden - "
+                              "Retry-Schutz läuft über den In-Memory-Backstop weiter")
         else:
             logging.info("Keine Fütterungen zu verarbeiten.")
         
@@ -229,16 +300,16 @@ def aktualisiere_fütterungsstatus():
     finally:
         feeding_lock.release()
 
-def process_single_feeding(fütterung, current_time):
+def process_single_feeding(fütterung, current_time, plan_name="?"):
     """
     Verarbeitet eine einzelne Fütterung
-    
+
     Returns:
         bool: True wenn Änderungen aufgetreten sind
     """
     try:
         fütterungszeit = datetime.datetime.strptime(fütterung["time"], "%H:%M").time()
-        
+
         # Prüfe Zeitbedingungen: Fütterung ist fällig, wenn Zeit <= jetzt und nicht länger als 10 Minuten her
         now_dt = datetime.datetime.combine(datetime.date.today(), current_time)
         fütterung_dt = datetime.datetime.combine(datetime.date.today(), fütterungszeit)
@@ -252,34 +323,68 @@ def process_single_feeding(fütterung, current_time):
             logging.debug(f"Überspringe bereits abgeschlossene Fütterung: {fütterung['time']}")
             return False
 
-        # Führe Fütterung aus
+        # Fehlversuche begrenzen: sonst wird im 10-Minuten-Fenster bei jedem
+        # Scheduler-Tick erneut die VOLLE Menge gefüttert (Überfütterung!)
+        # Zähler = Maximum aus Plan-JSON und In-Memory-Backstop, damit der Schutz
+        # auch greift, wenn die JSON nicht gespeichert werden konnte (SD voll/read-only)
+        mem_key = _memory_key(plan_name, fütterung["time"])
+        mem = _attempts_memory.get(mem_key, {})
+        attempts = max(int(fütterung.get("attempts", 0) or 0), int(mem.get("attempts", 0)))
+        if attempts >= MAX_FEEDING_ATTEMPTS:
+            logging.warning(f"[process_single_feeding] Fütterung {fütterung['time']}: "
+                            f"Maximale Versuche ({MAX_FEEDING_ATTEMPTS}) erreicht - kein weiterer Retry")
+            return False
+
+        # Bereits gefütterte Teilmenge aus früheren Versuchen anrechnen
+        # (auch hier: Maximum aus JSON und RAM-Backstop)
         target_weight = round(float(fütterung["weight"]), 2)
-        logging.info(f"[process_single_feeding] Starte Fütterung um {fütterung['time']} mit Zielgewicht: {target_weight}g")
+        already_fed = max(0.0, float(fütterung.get("fed_amount", 0.0) or 0.0),
+                          float(mem.get("fed_amount", 0.0)))
+        remaining = round(target_weight - already_fed, 2)
+        if remaining <= 0:
+            fütterung["status"] = True
+            fütterung["last_attempt"] = datetime.datetime.now().isoformat()
+            logging.info(f"[process_single_feeding] Zielmenge bereits erreicht ({already_fed}g) - markiere als erledigt")
+            return True
+
+        logging.info(f"[process_single_feeding] Starte Fütterung um {fütterung['time']}: "
+                     f"Restmenge {remaining}g (Soll {target_weight}g, bereits {already_fed}g), Versuch {attempts + 1}")
 
         success, message, fed_amount = execute_feeding(
-            target_weight=target_weight,
+            target_weight=remaining,
             timeout_seconds=300
         )
+        fed_amount = max(0.0, fed_amount)
 
-        # Update Status
+        # Update Status (fed_amount wird über Versuche hinweg kumuliert)
         fütterung["status"] = success
+        fütterung["attempts"] = attempts + 1
         fütterung["last_attempt"] = datetime.datetime.now().isoformat()
         fütterung["message"] = message
-        fütterung["fed_amount"] = fed_amount
+        fütterung["fed_amount"] = round(already_fed + fed_amount, 2)
+
+        # In-Memory-Backstop aktualisieren (übersteht fehlgeschlagene JSON-Saves)
+        _attempts_memory[mem_key] = {
+            "attempts": attempts + 1,
+            "fed_amount": round(already_fed + fed_amount, 2),
+        }
+
+        # Tracking: jede tatsächlich geförderte Menge zählt - auch bei Teilerfolg,
+        # das Futter ist ja im Napf gelandet
+        try:
+            if fed_amount > 0 and consumption_manager is not None:
+                consumption_manager.add_feeding(fed_amount, source="plan")
+                logging.info(f"[process_single_feeding] Fütterung getrackt: {fed_amount}g")
+            else:
+                logging.warning(f"[process_single_feeding] Fütterung NICHT getrackt - Gewichtsmessung ergab 0g")
+        except Exception as e:
+            logging.warning(f"[process_single_feeding] Fehler beim Tracking: {e}")
 
         if success:
-            # Füge Fütterung zum Tracking hinzu (nur wenn tatsächlich etwas gefüttert wurde)
-            try:
-                if fed_amount > 0:
-                    consumption_manager.add_feeding(fed_amount)
-                    logging.info(f"[process_single_feeding] Fütterung erfolgreich getrackt: {fed_amount}g")
-                else:
-                    logging.warning(f"[process_single_feeding] Fütterung NICHT getrackt - Gewichtsmessung ergab 0g")
-            except Exception as e:
-                logging.warning(f"[process_single_feeding] Fehler beim Tracking: {e}")
             logging.info(f"[process_single_feeding] Fütterung erfolgreich: {message}")
         else:
-            logging.warning(f"[process_single_feeding] Fütterung fehlgeschlagen: {message}")
+            logging.warning(f"[process_single_feeding] Fütterung fehlgeschlagen "
+                            f"(Versuch {attempts + 1}/{MAX_FEEDING_ATTEMPTS}): {message}")
 
         return True  # Änderung aufgetreten
 
@@ -355,7 +460,14 @@ def get_feeding_status():
 def cleanup_resources():
     """Bereinigt alle Ressourcen"""
     global _gewichtssensor, _motor_controller
-    
+
+    try:
+        from services import hardware
+        hardware.cleanup()
+        return
+    except ImportError:
+        pass
+
     try:
         if _motor_controller:
             _motor_controller.cleanup()
