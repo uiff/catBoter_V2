@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Scale, SlidersHorizontal } from 'lucide-react'
 import { toast } from 'sonner'
-import { Card, CardContent, CardHeader } from '@/components/ui/Card'
+import { CollapsibleCard } from '@/components/ui/CollapsibleCard'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Sheet } from '@/components/ui/Sheet'
@@ -35,9 +35,8 @@ export function ScaleCard() {
   }
 
   return (
-    <Card>
-      <CardHeader title="Waage" icon={<Scale className="h-4 w-4" />} />
-      <CardContent className="space-y-3">
+    <CollapsibleCard title="Waage" icon={<Scale className="h-4 w-4" />}>
+      <div className="space-y-3 pt-1">
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">Aktuelles Gewicht</span>
           <span className="tnum text-lg font-semibold">{formatGrams(sensor?.weight ?? null)}</span>
@@ -51,10 +50,10 @@ export function ScaleCard() {
             Kalibrieren
           </Button>
         </div>
-      </CardContent>
+      </div>
 
       <CalibrationSheet open={calOpen} onClose={() => setCalOpen(false)} />
-    </Card>
+    </CollapsibleCard>
   )
 }
 

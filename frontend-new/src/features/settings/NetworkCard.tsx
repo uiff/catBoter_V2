@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Cable, Lock, SignalHigh, SignalLow, SignalMedium, Wifi } from 'lucide-react'
 import { toast } from 'sonner'
-import { Card, CardContent, CardHeader } from '@/components/ui/Card'
+import { CollapsibleCard } from '@/components/ui/CollapsibleCard'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Sheet } from '@/components/ui/Sheet'
@@ -42,9 +42,8 @@ export function NetworkCard() {
   const eth = info?.interfaces?.eth0
 
   return (
-    <Card>
-      <CardHeader title="Netzwerk" icon={<Wifi className="h-4 w-4" />} />
-      <CardContent className="space-y-3">
+    <CollapsibleCard title="Netzwerk" icon={<Wifi className="h-4 w-4" />}>
+      <div className="space-y-3 pt-1">
         {network.isLoading ? (
           <div className="space-y-2">
             <Skeleton className="h-5 w-full" />
@@ -113,10 +112,10 @@ export function NetworkCard() {
             )}
           </div>
         )}
-      </CardContent>
+      </div>
 
       <ConnectSheet network={selected} onClose={() => setSelected(null)} />
-    </Card>
+    </CollapsibleCard>
   )
 }
 

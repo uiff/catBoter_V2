@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Bell, Send } from 'lucide-react'
 import { toast } from 'sonner'
-import { Card, CardContent, CardHeader } from '@/components/ui/Card'
+import { CollapsibleCard } from '@/components/ui/CollapsibleCard'
 import { Button } from '@/components/ui/Button'
 import { Skeleton, Stepper, Switch } from '@/components/ui/Misc'
 import { api, ApiError } from '@/lib/api'
@@ -149,9 +149,8 @@ export function NotificationsCard() {
   }
 
   return (
-    <Card>
-      <CardHeader title="Benachrichtigungen" icon={<Bell className="h-4 w-4" />} />
-      <CardContent className="space-y-3">
+    <CollapsibleCard title="Benachrichtigungen" icon={<Bell className="h-4 w-4" />}>
+      <div className="space-y-3 pt-1">
         {settings.isLoading ? (
           <Skeleton className="h-11 w-full" />
         ) : (
@@ -226,7 +225,7 @@ export function NotificationsCard() {
             </>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </CollapsibleCard>
   )
 }

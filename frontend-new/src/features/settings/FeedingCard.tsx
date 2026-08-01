@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Utensils } from 'lucide-react'
 import { toast } from 'sonner'
-import { Card, CardContent, CardHeader } from '@/components/ui/Card'
+import { CollapsibleCard } from '@/components/ui/CollapsibleCard'
 import { Skeleton, Switch } from '@/components/ui/Misc'
 import { api, ApiError } from '@/lib/api'
 import { queryClient } from '@/App'
@@ -28,9 +28,8 @@ export function FeedingCard() {
   }
 
   return (
-    <Card>
-      <CardHeader title="Fütterung" icon={<Utensils className="h-4 w-4" />} />
-      <CardContent>
+    <CollapsibleCard title="Fütterung" icon={<Utensils className="h-4 w-4" />}>
+      <div className="pt-1">
         {settings.isLoading ? (
           <Skeleton className="h-11 w-full" />
         ) : (
@@ -44,7 +43,7 @@ export function FeedingCard() {
             </p>
           </>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </CollapsibleCard>
   )
 }

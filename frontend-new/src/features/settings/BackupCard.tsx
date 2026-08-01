@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Download, HardDriveDownload, Upload } from 'lucide-react'
 import { toast } from 'sonner'
-import { Card, CardContent, CardHeader } from '@/components/ui/Card'
+import { CollapsibleCard } from '@/components/ui/CollapsibleCard'
 import { Button } from '@/components/ui/Button'
 import { ConfirmSheet } from '@/components/ui/ConfirmSheet'
 import { Skeleton } from '@/components/ui/Misc'
@@ -57,9 +57,8 @@ export function BackupCard() {
   }
 
   return (
-    <Card>
-      <CardHeader title="Backup" icon={<HardDriveDownload className="h-4 w-4" />} />
-      <CardContent className="space-y-3">
+    <CollapsibleCard title="Backup" icon={<HardDriveDownload className="h-4 w-4" />}>
+      <div className="space-y-3 pt-1">
         {info.isLoading ? (
           <Skeleton className="h-5 w-full" />
         ) : (
@@ -90,7 +89,7 @@ export function BackupCard() {
             onChange={onFileChosen}
           />
         </div>
-      </CardContent>
+      </div>
 
       <ConfirmSheet
         open={pendingFile !== null}
@@ -102,6 +101,6 @@ export function BackupCard() {
         danger
         loading={restoring}
       />
-    </Card>
+    </CollapsibleCard>
   )
 }

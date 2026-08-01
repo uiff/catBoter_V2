@@ -1,5 +1,5 @@
 import { Monitor, Moon, Palette, Sun } from 'lucide-react'
-import { Card, CardContent, CardHeader } from '@/components/ui/Card'
+import { CollapsibleCard } from '@/components/ui/CollapsibleCard'
 import { SegmentedControl } from '@/components/ui/Misc'
 import { useUiStore, type Theme } from '@/stores/uiStore'
 
@@ -9,9 +9,8 @@ export function AppearanceCard() {
   const setTheme = useUiStore((s) => s.setTheme)
 
   return (
-    <Card>
-      <CardHeader title="Darstellung" icon={<Palette className="h-4 w-4" />} />
-      <CardContent>
+    <CollapsibleCard title="Darstellung" icon={<Palette className="h-4 w-4" />} defaultOpen>
+      <div className="pt-1">
         <SegmentedControl<Theme>
           options={[
             { value: 'system', label: 'System', icon: Monitor },
@@ -21,7 +20,7 @@ export function AppearanceCard() {
           value={theme}
           onChange={setTheme}
         />
-      </CardContent>
-    </Card>
+      </div>
+    </CollapsibleCard>
   )
 }

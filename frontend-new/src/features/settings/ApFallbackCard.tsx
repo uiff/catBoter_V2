@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { RadioTower } from 'lucide-react'
 import { toast } from 'sonner'
-import { Card, CardContent, CardHeader } from '@/components/ui/Card'
+import { CollapsibleCard } from '@/components/ui/CollapsibleCard'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { ConfirmSheet } from '@/components/ui/ConfirmSheet'
@@ -91,9 +91,8 @@ export function ApFallbackCard() {
   const serviceRunning = status.data?.service_running ?? false
 
   return (
-    <Card>
-      <CardHeader title="Notfall-Hotspot" icon={<RadioTower className="h-4 w-4" />} />
-      <CardContent className="space-y-3">
+    <CollapsibleCard title="Notfall-Hotspot" icon={<RadioTower className="h-4 w-4" />}>
+      <div className="space-y-3 pt-1">
         {/* Status */}
         {status.isLoading ? (
           <Skeleton className="h-12 w-full" />
@@ -170,7 +169,7 @@ export function ApFallbackCard() {
             Hotspot stoppen
           </Button>
         </div>
-      </CardContent>
+      </div>
 
       <ConfirmSheet
         open={confirm === 'start'}
@@ -191,6 +190,6 @@ export function ApFallbackCard() {
         confirmLabel="Hotspot stoppen"
         loading={apBusy}
       />
-    </Card>
+    </CollapsibleCard>
   )
 }

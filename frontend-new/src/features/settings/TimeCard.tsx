@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Clock } from 'lucide-react'
-import { Card, CardContent, CardHeader } from '@/components/ui/Card'
+import { CollapsibleCard } from '@/components/ui/CollapsibleCard'
 import { Skeleton } from '@/components/ui/Misc'
 import { api } from '@/lib/api'
 import { formatIsoTime } from '@/lib/format'
@@ -14,9 +14,8 @@ export function TimeCard() {
   })
 
   return (
-    <Card>
-      <CardHeader title="Zeit" icon={<Clock className="h-4 w-4" />} />
-      <CardContent className="space-y-3">
+    <CollapsibleCard title="Zeit" icon={<Clock className="h-4 w-4" />}>
+      <div className="space-y-3 pt-1">
         {time.isLoading ? (
           <div className="space-y-2">
             <Skeleton className="h-5 w-full" />
@@ -35,7 +34,7 @@ export function TimeCard() {
           </div>
         )}
         <p className="text-xs text-muted-foreground">Zeit und NTP verwaltet das Host-System.</p>
-      </CardContent>
-    </Card>
+      </div>
+    </CollapsibleCard>
   )
 }

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Plug } from 'lucide-react'
 import { toast } from 'sonner'
-import { Card, CardContent, CardHeader } from '@/components/ui/Card'
+import { CollapsibleCard } from '@/components/ui/CollapsibleCard'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Skeleton, Switch } from '@/components/ui/Misc'
@@ -75,9 +75,8 @@ export function IntegrationsCard() {
   }
 
   return (
-    <Card>
-      <CardHeader title="Integrationen" icon={<Plug className="h-4 w-4" />} />
-      <CardContent className="space-y-3">
+    <CollapsibleCard title="Integrationen" icon={<Plug className="h-4 w-4" />}>
+      <div className="space-y-3 pt-1">
         {settings.isLoading ? (
           <div className="space-y-2">
             <Skeleton className="h-11 w-full" />
@@ -140,7 +139,7 @@ export function IntegrationsCard() {
             </div>
           </>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </CollapsibleCard>
   )
 }

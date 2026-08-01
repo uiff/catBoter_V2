@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Check, Plus, Sparkles, Trash2, TriangleAlert } from 'lucide-react'
 import { toast } from 'sonner'
-import { Card, CardContent, CardHeader } from '@/components/ui/Card'
+import { CollapsibleCard } from '@/components/ui/CollapsibleCard'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Sheet } from '@/components/ui/Sheet'
@@ -121,9 +121,8 @@ export function CareCard() {
   }
 
   return (
-    <Card>
-      <CardHeader title="Pflege" icon={<Sparkles className="h-4 w-4" />} />
-      <CardContent className="space-y-3">
+    <CollapsibleCard title="Pflege" icon={<Sparkles className="h-4 w-4" />}>
+      <div className="space-y-3 pt-1">
         {freshness.isLoading ? (
           <div className="space-y-2">
             <Skeleton className="h-6 w-full" />
@@ -239,7 +238,7 @@ export function CareCard() {
           <Plus className="h-4 w-4" />
           Neue Erinnerung
         </Button>
-      </CardContent>
+      </div>
 
       <AddReminderSheet open={addOpen} onClose={() => setAddOpen(false)} />
 
@@ -255,7 +254,7 @@ export function CareCard() {
         danger
         loading={deleting}
       />
-    </Card>
+    </CollapsibleCard>
   )
 }
 

@@ -87,11 +87,21 @@
     overflow-x: clip;
   }
 
+  /* App-Shell-Muster: html/body/#root exakt Viewport-Höhe, gescrollt wird NUR
+     im <main>. Damit ist die Tab-Bar normales Layout am unteren Rand - der
+     iOS-Bug, bei dem fixed-Elemente beim PWA-Start falsch sitzen, greift nicht. */
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     overscroll-behavior-y: none;
     overflow-x: clip;
+    overflow-y: hidden;
   }
 
   /* Messwerte immer mit Tabellenziffern */

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Power, RefreshCw, RotateCcw, Wrench } from 'lucide-react'
 import { toast } from 'sonner'
-import { Card, CardContent, CardHeader } from '@/components/ui/Card'
+import { CollapsibleCard } from '@/components/ui/CollapsibleCard'
 import { Button } from '@/components/ui/Button'
 import { ConfirmSheet } from '@/components/ui/ConfirmSheet'
 import { api, ApiError } from '@/lib/api'
@@ -65,9 +65,8 @@ export function SystemCard() {
   const active = confirm ? ACTIONS[confirm] : null
 
   return (
-    <Card>
-      <CardHeader title="Wartung" icon={<Wrench className="h-4 w-4" />} />
-      <CardContent className="space-y-2">
+    <CollapsibleCard title="Wartung" icon={<Wrench className="h-4 w-4" />}>
+      <div className="space-y-2 pt-1">
         <Button variant="secondary" className="w-full" onClick={() => setConfirm('restart')}>
           <RefreshCw className="h-4 w-4" />
           Backend neu starten
@@ -84,7 +83,7 @@ export function SystemCard() {
           <Power className="h-4 w-4" />
           Herunterfahren
         </Button>
-      </CardContent>
+      </div>
 
       {active && (
         <ConfirmSheet
@@ -98,6 +97,6 @@ export function SystemCard() {
           loading={busy}
         />
       )}
-    </Card>
+    </CollapsibleCard>
   )
 }

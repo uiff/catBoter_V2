@@ -22,10 +22,11 @@ export function TabBar() {
     <nav
       aria-label="Hauptnavigation"
       className={cn(
-        // Mobil: Bottom-Bar
-        'fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface pb-safe',
-        // Desktop: linke Rail
-        'md:inset-y-0 md:right-auto md:w-[76px] md:border-r md:border-t-0 md:pb-0',
+        // Mobil: normales Flex-Element am unteren Ende der App-Shell
+        // (KEIN fixed - iOS platziert fixed-Elemente beim PWA-Start falsch)
+        'z-40 shrink-0 border-t border-border bg-surface pb-safe',
+        // Desktop: linke Rail (fixed ist am Desktop unproblematisch)
+        'md:fixed md:inset-y-0 md:left-0 md:w-[76px] md:border-r md:border-t-0 md:pb-0',
       )}
     >
       <div className="hidden justify-center px-3 pb-2 pt-5 md:flex">
