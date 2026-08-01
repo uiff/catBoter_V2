@@ -117,6 +117,14 @@ def sample(weight, feeding_active: bool):
                 s["baseline"] = weight
                 s["increase_streak"] = 0
             elif decrease >= DECREASE_G and last >= MIN_CONSUMED_G:
+                # Unerklärter Anstieg direkt vor dem Fressen? Dann wurde von
+                # Hand geschüttet und eine Katze hat SOFORT losgelegt - der
+                # Anstieg war nie lange genug stabil für die normale Buchung.
+                # Differenz zum letzten erklärten Pegel jetzt nachbuchen.
+                rise = last - baseline
+                if (HAND_REFILL_MIN_G <= rise <= HAND_REFILL_MAX_G
+                        and now - s["last_dosing_ts"] >= POST_DOSING_QUIET_S):
+                    _register_hand_refill(round(rise, 1))
                 # Episode beginnt
                 s.update(active=True, start_ts=now, start_weight=last,
                          last_decrease_ts=now, bites=1, pauses=0,

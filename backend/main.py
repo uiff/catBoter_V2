@@ -91,13 +91,11 @@ def background_sensor_polling():
 
             # Fress-Episoden (Katzen-Signatur) + Hand-Nachfüllungen - nur wenn
             # gerade NICHT dosiert wird (Motor hebt das Gewicht selbst an).
-            # feeding_lock deckt auch Plan-Feeds inkl. Anti-Schling-Pausen ab,
-            # in denen der Motor kurzzeitig steht.
+            # is_dosing() deckt manuelle UND Plan-Feeds inkl. Anti-Schling-
+            # Pausen ab - bewusst NICHT der feeding_lock, den hält der
+            # Scheduler jede Minute kurz auch ohne Fütterung
             try:
-                from core.locks import feeding_lock
-                dosing = (snapshot.get('motor_running')
-                          or feeding_service.get_active_feeding() is not None
-                          or feeding_lock.locked())
+                dosing = snapshot.get('motor_running') or feeding_service.is_dosing()
                 eating_tracker.sample(snapshot.get('weight'), bool(dosing))
             except Exception as e:
                 logging.debug(f"Fress-Tracker Fehler: {e}")

@@ -20,6 +20,23 @@ MAX_SLOW_MINUTES = 15
 _state_lock = threading.Lock()
 _active = None  # None oder {"source", "target_grams", "fed_grams"}
 
+# Plan-Dosierung läuft (von feedingControl.execute_feeding gesetzt) - _active
+# meldet bewusst NUR manuelle Feeds (MotorStatus-Vertrag), der Fress-Tracker
+# braucht aber ein Signal für JEDE Dosierung inkl. Anti-Schling-Pausen
+_plan_dosing = False
+
+
+def set_plan_dosing(value):
+    global _plan_dosing
+    with _state_lock:
+        _plan_dosing = bool(value)
+
+
+def is_dosing():
+    """Läuft gerade irgendeine Dosierung (manuell ODER Plan)?"""
+    with _state_lock:
+        return _active is not None or _plan_dosing
+
 # Abbruch-Flag für die Pausen des Anti-Schling-Modus (feed_until_weight setzt
 # sein eigenes Abort-Flag bei jedem Aufruf zurück - die Pausen brauchen ein
 # Service-eigenes)

@@ -223,25 +223,41 @@ def execute_feeding(target_weight, timeout_seconds=300, slow_minutes=0):
                 except Exception:
                     pass
 
+        # Dosier-Signal für den Fress-Tracker setzen: Plan-Feeds melden sich
+        # nicht über _active (das ist bewusst nur manuell), der Tracker muss
+        # Gewichtsanstiege durch den Motor aber vom Hand-Nachfüllen trennen
+        _fs = None
+        try:
+            from services import feeding_service as _fs
+            _fs.set_plan_dosing(True)
+        except ImportError:
+            pass
+
         # feed_until_weight liefert die gefütterte Menge direkt numerisch zurück;
         # bei aktivem Anti-Schling-Modus läuft die Portion in Schüben
-        if slow_minutes and slow_minutes > 0:
-            try:
-                from services.feeding_service import chunked_feed
-                success, message, fed_amount = chunked_feed(
-                    motor_controller, target_weight, slow_minutes, progress_cb)
-            except ImportError:
+        try:
+            if slow_minutes and slow_minutes > 0:
+                try:
+                    from services.feeding_service import chunked_feed
+                    success, message, fed_amount = chunked_feed(
+                        motor_controller, target_weight, slow_minutes, progress_cb)
+                except ImportError:
+                    success, message, fed_amount = motor_controller.feed_until_weight(
+                        target_weight_grams=target_weight,
+                        timeout_seconds=timeout_seconds,
+                        progress_cb=progress_cb
+                    )
+            else:
                 success, message, fed_amount = motor_controller.feed_until_weight(
                     target_weight_grams=target_weight,
                     timeout_seconds=timeout_seconds,
                     progress_cb=progress_cb
                 )
-        else:
-            success, message, fed_amount = motor_controller.feed_until_weight(
-                target_weight_grams=target_weight,
-                timeout_seconds=timeout_seconds,
-                progress_cb=progress_cb
-            )
+        finally:
+            # Flag IMMER löschen - hängt es fest, wäre die Hand-Erkennung
+            # dauerhaft im Ruhefenster gefangen
+            if _fs is not None:
+                _fs.set_plan_dosing(False)
         logging.info(f"[execute_feeding] Ergebnis: success={success}, message={message}, fed_amount={fed_amount:.1f}g")
 
         if notifier is not None:
