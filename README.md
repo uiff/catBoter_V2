@@ -34,28 +34,44 @@
 
 ## Hardware
 
-| Komponente | Zweck |
-|---|---|
-| Raspberry Pi (3/4, 64-bit) | Steuerung |
-| NEMA17-Schrittmotor + A4988/DRV8825-Treiber | Futterförderung (Schnecke) |
-| Wägezelle + HX711 | Napfgewicht (Regelkreis + Verbrauch) |
-| VL53L0X (Time-of-Flight) | Tankfüllstand |
-| 12-V-Netzteil | Motorversorgung (VMOT) |
+![Komponenten](docs/components.svg)
 
-### Verdrahtung
+### Komponentenliste mit Bezugsquellen
+
+| Komponente | Spezifikation | Zweck | Bezugsquelle |
+|---|---|---|---|
+| Raspberry Pi 3/4 | 64-bit, WLAN | Steuerung | [raspberrypi.com](https://www.raspberrypi.com/products/) |
+| NEMA17 mit **integriertem Treiber** | „One-Machine-Driver", DC 11–28 V, 2 A, empfohlen 24 V | Futterförderung (Schnecke) | [AliExpress](https://www.aliexpress.us/item/3256808913561157.html) · [Grandado](https://gbr.grandado.com/products/nema-17-integrated-motor-driver-42-stepper-motor-one-machine-driver-dc11v-dc28v-2a-recommending-dc24v-2) |
+| HX711-Modul | 24-bit-ADC für Wägezellen | Napfgewicht (Regelkreis + Verbrauch) | Datenblatt: [Avia HX711 (PDF)](https://cdn.sparkfun.com/datasheets/Sensors/ForceFlex/hx711_english.pdf) |
+| Wägezelle (Load Cell) | 1–5 kg, Halbleiter-DMS | unter dem Napf | übliche Elektronik-Händler (mit HX711 oft im Set) |
+| VL53L0X | Time-of-Flight-Laser, bis 2 m, I2C | Tankfüllstand | [ST-Produktseite](https://www.st.com/en/imaging-and-photonics-solutions/vl53l0x.html) |
+| Steckernetzteil 24 V | DC 24 V, **min. 3 A** (Motor 2 A + Pi) | Hauptversorgung | Elektronik-Händler |
+| DC-DC Step-Down 24 V → 5 V | Buck-Converter, min. 3 A, USB-Ausgang | Pi-Versorgung aus dem 24-V-Netzteil | [AliExpress (verwendetes Modul)](https://www.aliexpress.us/item/2255801001346505.html) |
+
+### Verdrahtung (Signale + Stromversorgung)
 
 ![Verdrahtungsplan](docs/wiring.svg)
 
+**Signale (BCM-Nummerierung):**
+
 | Signal | BCM-Pin | Modul |
 |---|---|---|
-| DIR | GPIO 26 | Motor-Treiber |
-| STEP | GPIO 21 | Motor-Treiber |
-| ENABLE | GPIO 4 | Motor-Treiber (LOW = aktiv) |
+| DIR | GPIO 26 | integrierter Motor-Treiber |
+| STEP / PUL | GPIO 21 | integrierter Motor-Treiber |
+| ENABLE | GPIO 4 | integrierter Motor-Treiber (LOW = aktiv) |
 | DT | GPIO 17 | HX711 |
 | SCK | GPIO 18 | HX711 |
 | SDA / SCL | GPIO 2 / 3 | VL53L0X (I2C) |
 
-**Wichtig:** Alle GND verbinden (Pi, Module, Motor-Netzteil). I2C per `sudo raspi-config` aktivieren.
+**Stromversorgung:**
+
+1. Steckdose (230 V AC) → **geschlossenes 24-V-Steckernetzteil** (keine offene Netzverdrahtung nötig)
+2. 24 V über Wago-/Lüsterklemme verteilt auf:
+   - **Motor V+ / V−** (integrierter Treiber, dicke Leitungen, 0,75 mm²)
+   - **Buck-Converter** → 5 V → per USB an den Raspberry Pi
+3. **Gemeinsame Masse:** Netzteil-Minus, Treiber-Logik-GND, Pi-GND und alle Sensor-GND verbinden
+
+⚠️ **Sicherheit:** Pi niemals direkt an 24 V. Beim Anschliessen erst GND, dann V+. Motor-Leitungen getrennt von Signal-Leitungen führen (Störungen). I2C per `sudo raspi-config` aktivieren.
 
 ## Installation
 

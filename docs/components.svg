@@ -1,0 +1,97 @@
+<svg viewBox="0 0 900 620" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
+  <defs>
+    <style>
+      .card { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.5; }
+      .name { font-size: 14px; font-weight: 600; fill: #0f172a; text-anchor: middle; }
+      .spec { font-size: 11px; fill: #64748b; text-anchor: middle; }
+    </style>
+  </defs>
+  <rect width="900" height="620" fill="#f8fafc"/>
+  <text x="450" y="34" text-anchor="middle" font-size="19" font-weight="700" fill="#0f172a">CatBoter V3 – Elektronik-Komponenten</text>
+
+  <!-- Raspberry Pi -->
+  <rect x="40" y="60" width="260" height="160" rx="12" class="card"/>
+  <g transform="translate(90,80)">
+    <rect x="0" y="10" width="160" height="70" rx="6" fill="#0f7548"/>
+    <rect x="8" y="0" width="100" height="12" rx="2" fill="#b45309"/>
+    <rect x="120" y="18" width="32" height="20" rx="2" fill="#d1d5db"/>
+    <rect x="120" y="44" width="32" height="20" rx="2" fill="#d1d5db"/>
+    <rect x="10" y="30" width="44" height="34" rx="3" fill="#1f2937"/>
+    <circle cx="70" cy="48" r="9" fill="#9ca3af"/>
+  </g>
+  <text x="170" y="190" class="name">Raspberry Pi 3/4 (64-bit)</text>
+  <text x="170" y="206" class="spec">Steuerung · GPIO · WLAN/LAN</text>
+
+  <!-- NEMA17 integriert -->
+  <rect x="320" y="60" width="260" height="160" rx="12" class="card"/>
+  <g transform="translate(380,78)">
+    <rect x="10" y="0" width="120" height="70" rx="8" fill="#374151"/>
+    <circle cx="70" cy="35" r="20" fill="#9ca3af"/>
+    <circle cx="70" cy="35" r="7" fill="#4b5563"/>
+    <rect x="10" y="74" width="120" height="26" rx="4" fill="#166534"/>
+    <circle cx="24" cy="87" r="3" fill="#fbbf24"/><circle cx="38" cy="87" r="3" fill="#fbbf24"/>
+    <circle cx="52" cy="87" r="3" fill="#fbbf24"/><circle cx="66" cy="87" r="3" fill="#fbbf24"/>
+  </g>
+  <text x="450" y="190" class="name">NEMA17 mit integriertem Treiber</text>
+  <text x="450" y="206" class="spec">DC 11–28 V · 2 A · DIR/STEP/EN direkt am Motor</text>
+
+  <!-- HX711 + Wägezelle -->
+  <rect x="600" y="60" width="260" height="160" rx="12" class="card"/>
+  <g transform="translate(640,84)">
+    <rect x="0" y="10" width="70" height="46" rx="5" fill="#166534"/>
+    <text x="35" y="38" text-anchor="middle" font-size="11" fill="#f8fafc" font-weight="600">HX711</text>
+    <rect x="95" y="18" width="90" height="26" rx="4" fill="#9ca3af"/>
+    <circle cx="112" cy="31" r="5" fill="#e5e7eb"/>
+    <circle cx="168" cy="31" r="5" fill="#e5e7eb"/>
+    <path d="M70 26 L95 26 M70 38 L95 38" stroke="#dc2626" stroke-width="2"/>
+  </g>
+  <text x="730" y="190" class="name">HX711 + Wägezelle</text>
+  <text x="730" y="206" class="spec">1–5 kg Load Cell · 24-bit ADC · Napfgewicht</text>
+
+  <!-- VL53L0X -->
+  <rect x="40" y="250" width="260" height="160" rx="12" class="card"/>
+  <g transform="translate(115,285)">
+    <rect x="0" y="0" width="110" height="55" rx="6" fill="#6d28d9"/>
+    <rect x="38" y="16" width="34" height="22" rx="3" fill="#1f2937"/>
+    <circle cx="47" cy="27" r="4" fill="#60a5fa"/>
+    <circle cx="63" cy="27" r="4" fill="#f87171"/>
+    <circle cx="10" cy="10" r="3" fill="#fbbf24"/><circle cx="10" cy="45" r="3" fill="#fbbf24"/>
+  </g>
+  <text x="170" y="380" class="name">VL53L0X Time-of-Flight</text>
+  <text x="170" y="396" class="spec">Laser-Distanz bis 2 m · I2C · Tankfüllstand</text>
+
+  <!-- 24V Netzteil -->
+  <rect x="320" y="250" width="260" height="160" rx="12" class="card"/>
+  <g transform="translate(380,275)">
+    <rect x="0" y="10" width="90" height="60" rx="8" fill="#1f2937"/>
+    <rect x="90" y="30" width="18" height="20" rx="2" fill="#4b5563"/>
+    <path d="M108 36 L140 36 M108 44 L140 44" stroke="#475569" stroke-width="3"/>
+    <text x="45" y="45" text-anchor="middle" font-size="11" fill="#e5e7eb" font-weight="600">24V 3A</text>
+  </g>
+  <text x="450" y="380" class="name">Steckernetzteil 24 V</text>
+  <text x="450" y="396" class="spec">DC 24 V, min. 3 A · versorgt Motor + Pi-Wandler</text>
+
+  <!-- Buck Converter -->
+  <rect x="600" y="250" width="260" height="160" rx="12" class="card"/>
+  <g transform="translate(665,280)">
+    <rect x="0" y="5" width="130" height="50" rx="5" fill="#1e40af"/>
+    <circle cx="30" cy="30" r="14" fill="#b45309"/>
+    <circle cx="30" cy="30" r="8" fill="#92400e"/>
+    <rect x="60" y="15" width="30" height="30" rx="3" fill="#111827"/>
+    <rect x="100" y="18" width="22" height="24" rx="2" fill="#d1d5db"/>
+  </g>
+  <text x="730" y="380" class="name">DC-DC Step-Down 24 V → 5 V</text>
+  <text x="730" y="396" class="spec">Buck-Converter, min. 3 A · Pi-Versorgung via USB</text>
+
+  <!-- Verbrauchsmaterial -->
+  <rect x="40" y="440" width="820" height="140" rx="12" class="card"/>
+  <text x="450" y="470" class="name">Kleinmaterial</text>
+  <g transform="translate(120,490)" font-size="12" fill="#334155">
+    <text x="0" y="14">• Dupont-Jumperkabel (Buchse–Buchse) für alle Signalleitungen</text>
+    <text x="0" y="36">• Wago-/Lüsterklemmen für die 24-V-Verteilung (Motor + Wandler)</text>
+    <text x="0" y="58">• USB-Adapterkabel vom Wandler-Ausgang an den Pi (USB-C)</text>
+    <text x="420" y="14">• Litze 0,75 mm² für 24-V-Leitungen</text>
+    <text x="420" y="36">• Schrumpfschlauch / Aderendhülsen</text>
+    <text x="420" y="58">• M3-Schrauben für Sensor-Montage</text>
+  </g>
+</svg>
