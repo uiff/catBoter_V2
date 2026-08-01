@@ -373,6 +373,51 @@ def set_app_settings():
             profiles["cats"].append(entry)
         changes["cat_profiles"] = profiles
 
+    if "diet" in data:
+        incoming = data["diet"]
+        if not isinstance(incoming, dict):
+            return jsonify({"error": "Ungültige Diät-Konfiguration"}), 400
+        current = dict(settings_service.get_settings().get("diet") or {})
+        diet = {
+            "enabled": bool(incoming.get("enabled", current.get("enabled", False))),
+            "target_grams": current.get("target_grams"),
+            "weekly_reduction_pct": current.get("weekly_reduction_pct", 5),
+            "start_date": current.get("start_date"),
+            "start_grams": current.get("start_grams"),
+        }
+        for key, low, high in (("target_grams", 5, 200), ("start_grams", 5, 300)):
+            if key in incoming:
+                value = incoming[key]
+                if value is not None:
+                    try:
+                        value = float(value)
+                    except (TypeError, ValueError):
+                        return jsonify({"error": f"Ungültiger Wert für {key}"}), 400
+                    if not (low <= value <= high):
+                        return jsonify({"error": f"{key} muss zwischen {low} und {high} g liegen"}), 400
+                diet[key] = value
+        if "weekly_reduction_pct" in incoming:
+            try:
+                pct = float(incoming["weekly_reduction_pct"])
+            except (TypeError, ValueError):
+                return jsonify({"error": "Ungültige Reduktion"}), 400
+            # Sicherheitsgrenze: schnellere Reduktion ist für Katzen gefährlich
+            if not (0 <= pct <= 5):
+                return jsonify({"error": "Reduktion max. 5 % pro Woche (Katzen-Sicherheit)"}), 400
+            diet["weekly_reduction_pct"] = pct
+        if diet["enabled"] and not diet["target_grams"]:
+            return jsonify({"error": "Diät braucht ein Tagesziel (target_grams)"}), 400
+        if (diet["target_grams"] and diet["start_grams"]
+                and diet["start_grams"] < diet["target_grams"]):
+            return jsonify({"error": "Startmenge muss über dem Tagesziel liegen"}), 400
+        # Rampen-Startpunkt: setzen, wenn die Startmenge neu gesetzt/geändert wird
+        if ("start_grams" in incoming and incoming["start_grams"] is not None
+                and incoming["start_grams"] != current.get("start_grams")):
+            diet["start_date"] = datetime.now().date().isoformat()
+        elif diet["start_grams"] and not diet["start_date"]:
+            diet["start_date"] = datetime.now().date().isoformat()
+        changes["diet"] = diet
+
     try:
         settings = settings_service.update_settings(changes)
     except OSError as e:
@@ -384,6 +429,14 @@ def set_app_settings():
             event_log.log_event("pause", f"Fütterungen pausiert bis {changes['paused_until']}")
         else:
             event_log.log_event("pause", "Pause aufgehoben")
+
+    if "diet" in changes:
+        from services import event_log
+        if changes["diet"].get("enabled"):
+            event_log.log_event("diet", f"Diät-Modus aktiv - Ziel "
+                                        f"{changes['diet'].get('target_grams')} g/Tag")
+        else:
+            event_log.log_event("diet", "Diät-Modus deaktiviert")
 
     # MQTT-Verbindung neu aufbauen, wenn sich die Konfiguration geändert hat
     if "mqtt" in changes or "ha_discovery" in changes:

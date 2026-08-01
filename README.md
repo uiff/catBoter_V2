@@ -23,6 +23,9 @@
 - **Gesundheits-Monitor** — Fressgeschwindigkeit und „Napf seit X h unberührt"-Warnung aus der Gewichtskurve
 - **MQTT / Home Assistant** — `catboter/status` (lesen, retained) + `catboter/command` (steuern: feed/stop/pause/resume), optional HA-Discovery
 - **Kalorienrechner** — Katzenprofil → empfohlene Tagesmenge (RER/MER), direkt in den Plan übernehmbar
+- **Diät-Modus** — Tages-Budget für den Haushalt mit sanfter Rampe (max. 5 %/Woche, Katzen-sicher); Plan-Dosen werden aufs Rest-Budget gekappt, manuelle Fütterungen gewarnt
+- **Fress-Signatur** — die Waage erkennt einzelne Fress-Episoden (Tempo, Bissgrösse, Pausen); nach dem Labeln in der App ordnet ein Klassifikator neue Episoden der richtigen Katze zu
+- **Hand-Fütterungen** — Futter direkt in den Napf geworfen? Der anhaltende Gewichtsanstieg wird erkannt und als „Von Hand" mitgezählt (Statistik + Diät-Budget bleiben ehrlich)
 - **Notfall-Hotspot** — verliert der CatBoter jede Netzwerkverbindung (WLAN *und* LAN), startet er automatisch den Hotspot `CatBoter-Setup`; über `http://10.0.0.1` ist die volle App erreichbar
 - **PWA** — als App auf dem Homescreen installierbar, Hell-/Dunkel-Design automatisch
 

@@ -42,6 +42,17 @@ APP_SETTINGS_DEFAULTS = {
         "password": "",
     },
     "ha_discovery": False,
+    # Diät-Modus: Tages-Budget für den Haushalt (beide Katzen zusammen).
+    # Sanfte Rampe: von start_grams aus max. weekly_reduction_pct pro Woche
+    # runter bis target_grams - Crash-Diäten sind für Katzen gefährlich
+    # (hepatische Lipidose). Hand- und App-Fütterungen zählen ins Budget.
+    "diet": {
+        "enabled": False,
+        "target_grams": None,
+        "weekly_reduction_pct": 5,
+        "start_date": None,
+        "start_grams": None,
+    },
     # Katzenprofile für den Kalorienrechner (beide fressen aus demselben
     # Automaten - die Plan-Empfehlung ist die SUMME beider Katzen)
     "cat_profiles": {

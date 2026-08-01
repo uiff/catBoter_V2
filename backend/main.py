@@ -72,6 +72,7 @@ def background_sensor_polling():
     """Pusht alle 5 s den Sensor-Zustand; zusätzlich: Tank-Tages-Snapshot,
     Gesundheits-Monitor, Tank-Warn-Push (Zustandswechsel) und MQTT-Status."""
     from services import health_monitor, mqtt_service, settings_service, feeding_service
+    from services import eating_tracker
     logging.info("Background Sensor Polling gestartet (5 s Intervall)")
     last_date = datetime.date.today()
     last_total = 0.0
@@ -87,6 +88,19 @@ def background_sensor_polling():
                 health_monitor.sample(snapshot.get('weight'), hours)
             except Exception as e:
                 logging.debug(f"Health-Sample Fehler: {e}")
+
+            # Fress-Episoden (Katzen-Signatur) + Hand-Nachfüllungen - nur wenn
+            # gerade NICHT dosiert wird (Motor hebt das Gewicht selbst an).
+            # feeding_lock deckt auch Plan-Feeds inkl. Anti-Schling-Pausen ab,
+            # in denen der Motor kurzzeitig steht.
+            try:
+                from core.locks import feeding_lock
+                dosing = (snapshot.get('motor_running')
+                          or feeding_service.get_active_feeding() is not None
+                          or feeding_lock.locked())
+                eating_tracker.sample(snapshot.get('weight'), bool(dosing))
+            except Exception as e:
+                logging.debug(f"Fress-Tracker Fehler: {e}")
 
             # Tank-Warnung als Push - Schwelle aus den App-Einstellungen
             # (tank_warn_percent), nur beim Unterschreiten (kein Spam)

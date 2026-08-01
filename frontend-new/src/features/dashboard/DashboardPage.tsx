@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { CalendarClock, Container, PawPrint, Scale, Square, TriangleAlert, Utensils } from 'lucide-react'
+import { CalendarClock, Container, PawPrint, Scale, Square, Target, TriangleAlert, Utensils } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { ProgressBar, Skeleton } from '@/components/ui/Misc'
@@ -33,6 +33,14 @@ export default function DashboardPage() {
   const settings = useQuery({ queryKey: ['app-settings'], queryFn: api.getAppSettings })
   const warnPercent = settings.data?.tank_warn_percent ?? DEFAULT_TANK_WARN_PERCENT
 
+  // Diät-Budget nur abfragen, wenn der Diät-Modus aktiv ist
+  const diet = useQuery({
+    queryKey: ['diet-status'],
+    queryFn: api.getDietStatus,
+    enabled: settings.data?.diet?.enabled === true,
+    refetchInterval: 60_000,
+  })
+
   // Initial-Snapshot per REST, falls der Socket noch nicht geliefert hat
   const dashboardQuery = useQuery({
     queryKey: ['dashboard-initial'],
@@ -47,6 +55,7 @@ export default function DashboardPage() {
     () =>
       onFeedingCompleted(() => {
         queryClient.invalidateQueries({ queryKey: ['today'] })
+        queryClient.invalidateQueries({ queryKey: ['diet-status'] })
       }),
     [],
   )
@@ -122,6 +131,37 @@ export default function DashboardPage() {
                   {formatGrams(snapshot.today_total)}
                 </span>
               </div>
+
+              {/* Diät-Budget (nur bei aktivem Diät-Modus) */}
+              {diet.data?.enabled && diet.data.budget_today !== null && (
+                <div>
+                  <div className="flex items-center justify-between pb-1.5">
+                    <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Target className="h-4 w-4" />
+                      Diät-Budget
+                    </span>
+                    <span className="tnum text-lg font-semibold">
+                      {formatGrams(diet.data.remaining ?? 0)}
+                      <span className="text-sm font-normal text-muted-foreground"> übrig</span>
+                    </span>
+                  </div>
+                  <ProgressBar
+                    value={diet.data.consumed_today}
+                    max={diet.data.budget_today}
+                    colorClass={
+                      diet.data.consumed_today >= diet.data.budget_today
+                        ? 'bg-danger'
+                        : diet.data.consumed_today >= diet.data.budget_today * 0.9
+                          ? 'bg-warning'
+                          : 'bg-primary'
+                    }
+                  />
+                  <p className="tnum pt-1 text-xs text-muted-foreground">
+                    {formatGrams(diet.data.consumed_today)} von {formatGrams(diet.data.budget_today)}
+                    {diet.data.at_target === false && ' · Rampe aktiv'}
+                  </p>
+                </div>
+              )}
 
               {/* Nächste geplante Fütterung */}
               {nextFeeding && !feedingActive && (

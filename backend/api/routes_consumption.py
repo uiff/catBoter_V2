@@ -40,7 +40,10 @@ def today_detailed():
         today_day = DAY_NAME_MAP[today.weekday()]
 
         plans = load_feeding_plans()
-        active_plan = next((p for p in plans if p.get('active', False)), None)
+        # Bei mehreren aktiven Plänen (z. B. Arbeitstage/Wochenende) zählt der,
+        # der den HEUTIGEN Tag abdeckt
+        active_plan = next((p for p in plans if p.get('active', False)
+                            and today_day in p.get('selectedDays', [])), None)
 
         if active_plan and 'feedingSchedule' in active_plan:
             for feeding in active_plan['feedingSchedule'].get(today_day, []):
@@ -54,15 +57,19 @@ def today_detailed():
                     'type': 'random' if active_plan.get('isRandomGenerated') else 'auto',
                     'status': feeding.get('status'),
                     'planned_amount': feeding.get('weight', 0),
-                    'skipped': bool(feeding.get('skipped_smart', False)),
+                    'skipped': bool(feeding.get('skipped_smart') or feeding.get('skipped_diet')),
+                    'skipped_diet': bool(feeding.get('skipped_diet', False)),
                 })
 
         for entry in consumption_manager.get_today_feedings():
-            if entry.get('source') == 'manual':
+            source = entry.get('source')
+            # 'hand': Nutzer hat Futter direkt in den Napf gegeben (Waage hat
+            # den anhaltenden Gewichtsanstieg erkannt und verbucht)
+            if source in ('manual', 'hand'):
                 feedings.append({
                     'time': entry.get('time', '')[:5],
                     'amount': entry.get('amount', 0),
-                    'type': 'manual',
+                    'type': source,
                     'status': True,
                     'planned_amount': entry.get('amount', 0),
                 })

@@ -12,6 +12,7 @@ def register_blueprints(app):
     from api.routes_backup import bp as backup_bp
     from api.routes_push import bp as push_bp
     from api.routes_care import bp as care_bp
+    from api.routes_eating import bp as eating_bp
 
     app.register_blueprint(health_bp)
     app.register_blueprint(sensors_bp)
@@ -23,3 +24,4 @@ def register_blueprints(app):
     app.register_blueprint(backup_bp)
     app.register_blueprint(push_bp)
     app.register_blueprint(care_bp)
+    app.register_blueprint(eating_bp)

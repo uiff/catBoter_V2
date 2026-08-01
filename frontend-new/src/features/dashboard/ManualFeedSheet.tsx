@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { CircleCheck, CircleX, Scale, Square } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { CircleCheck, CircleX, Scale, Square, Target } from 'lucide-react'
 import { toast } from 'sonner'
 import { Sheet } from '@/components/ui/Sheet'
+import { ConfirmSheet } from '@/components/ui/ConfirmSheet'
 import { Button } from '@/components/ui/Button'
 import { ProgressBar, SegmentedControl, Stepper } from '@/components/ui/Misc'
 import { api, ApiError } from '@/lib/api'
@@ -22,8 +24,20 @@ export function ManualFeedSheet({ open, onClose }: ManualFeedSheetProps) {
   const [slowMinutes, setSlowMinutes] = useState<SlowMinutes>('0')
   const [starting, setStarting] = useState(false)
   const [stopping, setStopping] = useState(false)
+  const [confirmOverBudget, setConfirmOverBudget] = useState(false)
   const feeding = useFeeding()
   const sensor = useSensor()
+
+  // Diät-Budget: manuelles Füttern wird nicht blockiert, aber gewarnt
+  const diet = useQuery({
+    queryKey: ['diet-status'],
+    queryFn: api.getDietStatus,
+    enabled: open,
+    staleTime: 30_000,
+  })
+  const dietRemaining =
+    diet.data?.enabled && diet.data.budget_today !== null ? diet.data.remaining ?? 0 : null
+  const overBudget = dietRemaining !== null && amount > dietRemaining
 
   const active = feeding?.active ?? false
   // Nur MANUELLE Ergebnisse in diesem Sheet anzeigen - das Resultat einer
@@ -57,6 +71,7 @@ export function ManualFeedSheet({ open, onClose }: ManualFeedSheetProps) {
   }
 
   const startFeed = async () => {
+    setConfirmOverBudget(false)
     setStarting(true)
     try {
       await api.manualFeed(amount, Number(slowMinutes))
@@ -66,6 +81,12 @@ export function ManualFeedSheet({ open, onClose }: ManualFeedSheetProps) {
     } finally {
       setStarting(false)
     }
+  }
+
+  // Über dem Diät-Budget erst bestätigen lassen, dann füttern
+  const requestFeed = () => {
+    if (overBudget) setConfirmOverBudget(true)
+    else void startFeed()
   }
 
   const stopFeed = async () => {
@@ -179,11 +200,31 @@ export function ManualFeedSheet({ open, onClose }: ManualFeedSheetProps) {
             />
           </div>
 
-          <Button size="lg" className="w-full" onClick={startFeed} loading={starting}>
+          {overBudget && (
+            <div className="flex items-center gap-2 rounded-md bg-warning-soft px-3 py-2 text-sm text-warning">
+              <Target className="h-4 w-4 shrink-0" />
+              <span className="tnum">
+                Diät-Budget: heute nur noch {formatGrams(dietRemaining)} übrig
+              </span>
+            </div>
+          )}
+
+          <Button size="lg" className="w-full" onClick={requestFeed} loading={starting}>
             {formatGrams(amount)} füttern
           </Button>
         </div>
       )}
+
+      <ConfirmSheet
+        open={confirmOverBudget}
+        onClose={() => setConfirmOverBudget(false)}
+        onConfirm={startFeed}
+        title="Über dem Diät-Budget"
+        description={`Heute sind nur noch ${formatGrams(dietRemaining ?? 0)} im Diät-Budget übrig. ${formatGrams(amount)} trotzdem füttern?`}
+        confirmLabel="Trotzdem füttern"
+        danger
+        loading={starting}
+      />
     </Sheet>
   )
 }

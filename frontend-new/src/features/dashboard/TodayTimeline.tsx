@@ -1,4 +1,4 @@
-import { CircleCheck, CircleSlash, CircleX, Clock, Hand, PawPrint, Shuffle, Timer } from 'lucide-react'
+import { CircleCheck, CircleSlash, CircleX, Clock, Hand, HandPlatter, PawPrint, Shuffle, Timer } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/Card'
 import { EmptyState, Skeleton } from '@/components/ui/Misc'
 import { formatGrams, formatTime } from '@/lib/format'
@@ -11,7 +11,7 @@ interface TodayTimelineProps {
 }
 
 function statusFor(feeding: TodayFeeding, now: Date) {
-  if (feeding.type === 'manual') return 'done'
+  if (feeding.type === 'manual' || feeding.type === 'hand') return 'done'
   if (feeding.status === true) return 'done'
   if (feeding.status === false) return 'failed'
   const [h, m] = feeding.time.split(':').map(Number)
@@ -24,6 +24,7 @@ const TYPE_META = {
   auto: { label: 'Plan', icon: Clock },
   random: { label: 'Zufall', icon: Shuffle },
   manual: { label: 'Manuell', icon: Hand },
+  hand: { label: 'Von Hand', icon: HandPlatter },
 } as const
 
 export function TodayTimeline({ feedings, loading }: TodayTimelineProps) {
@@ -68,7 +69,9 @@ export function TodayTimeline({ feedings, loading }: TodayTimelineProps) {
                   </span>
 
                   {skipped ? (
-                    <span className="ml-auto text-sm text-info">übersprungen · Napf voll</span>
+                    <span className="ml-auto text-sm text-info">
+                      {feeding.skipped_diet ? 'übersprungen · Diät-Budget' : 'übersprungen · Napf voll'}
+                    </span>
                   ) : (
                     <span className={cn('tnum ml-auto text-sm', status === 'pending' && 'text-muted-foreground')}>
                       {status === 'done' || status === 'failed'

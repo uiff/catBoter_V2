@@ -16,7 +16,7 @@ def health():
     return jsonify({
         "status": "online",
         "timestamp": datetime.datetime.now().isoformat(),
-        "version": "3.2",
+        "version": "3.4",
     })
 
 

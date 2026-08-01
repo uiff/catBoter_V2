@@ -2,6 +2,7 @@ import { BrandLogo } from '@/components/layout/BrandLogo'
 import { AppearanceCard } from './AppearanceCard'
 import { NotificationsCard } from './NotificationsCard'
 import { FeedingCard } from './FeedingCard'
+import { DietCard } from './DietCard'
 import { CatProfileCard } from './CatProfileCard'
 import { CareCard } from './CareCard'
 import { ScaleCard } from './ScaleCard'
@@ -21,6 +22,7 @@ export default function SettingsPage() {
       <AppearanceCard />
       <NotificationsCard />
       <FeedingCard />
+      <DietCard />
       <CatProfileCard />
       <CareCard />
       <ScaleCard />

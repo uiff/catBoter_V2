@@ -10,6 +10,7 @@ import { TrendChart } from './TrendChart'
 import { SystemStatsCard } from './SystemStatsCard'
 import { EventsCard } from './EventsCard'
 import { HealthCard } from './HealthCard'
+import { EatingCard } from './EatingCard'
 
 type Period = '7' | '30'
 
@@ -27,7 +28,9 @@ function localIsoDate(now: Date): string {
  */
 function reliability(feedings: TodayFeeding[], now: Date) {
   const planned = feedings.filter((feeding) => {
-    if (feeding.type === 'manual') return false
+    // Manuelle und Hand-Fütterungen sind nie "fällig" - sie zählen nicht
+    // in die Zuverlässigkeit der Plan-Fütterungen
+    if (feeding.type === 'manual' || feeding.type === 'hand') return false
     // Smart-Feed-Übersprungene zählen nicht als fällig (Napf war noch voll)
     if (feeding.skipped) return false
     if (feeding.status !== null) return true
@@ -130,6 +133,8 @@ export default function StatsPage() {
       <EventsCard />
 
       <HealthCard />
+
+      <EatingCard />
 
       <SystemStatsCard stats={systemStats.data} loading={systemStats.isLoading} />
     </div>

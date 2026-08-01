@@ -472,6 +472,44 @@ def process_single_feeding(fütterung, current_time, plan_name="?", slow_minutes
         except ImportError:
             pass  # Standalone-Betrieb ohne Services
 
+        # Diät-Modus: Plan-Dosis auf das Rest-Budget des Tages kappen.
+        # Ins Budget zählen ALLE heutigen Fütterungen (Plan, App, von Hand).
+        # Budget aufgebraucht -> terminal überspringen (der Verbrauch kann im
+        # Fenster nur noch steigen, ein Retry würde nie wieder Budget haben).
+        try:
+            from services import diet_service
+            allowed, budget = diet_service.clamp_plan_amount(remaining)
+            if budget is not None and allowed <= 0:
+                fütterung["status"] = True
+                fütterung["skipped_diet"] = True
+                fütterung["last_attempt"] = datetime.datetime.now().isoformat()
+                fütterung["message"] = f"Übersprungen - Diät-Budget erreicht ({budget:g} g/Tag)"
+                logging.info(f"[process_single_feeding] Diät: {fütterung['time']} "
+                             f"übersprungen, Tagesbudget {budget:g} g aufgebraucht")
+                try:
+                    from services import event_log
+                    event_log.log_event("diet_skipped",
+                                        f"{fütterung['time']}: Diät-Budget erreicht "
+                                        f"({budget:g} g/Tag)")
+                except Exception:
+                    pass
+                return True
+            if budget is not None and allowed < remaining:
+                fütterung["diet_clamped"] = True
+                logging.info(f"[process_single_feeding] Diät: Dosis {remaining} g -> "
+                             f"{allowed} g (Rest-Budget)")
+                try:
+                    from services import event_log
+                    event_log.log_event("diet_clamp",
+                                        f"{fütterung['time']}: Dosis auf Rest-Budget "
+                                        f"gekappt ({remaining:g} -> {allowed:g} g)",
+                                        grams=allowed)
+                except Exception:
+                    pass
+                remaining = allowed
+        except ImportError:
+            pass  # Standalone-Betrieb ohne Services
+
         logging.info(f"[process_single_feeding] Starte Fütterung um {fütterung['time']}: "
                      f"Restmenge {remaining}g (Soll {target_weight}g, bereits {already_fed}g), Versuch {attempts + 1}")
 

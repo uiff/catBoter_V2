@@ -50,11 +50,13 @@ export interface MotorStatus {
 export interface TodayFeeding {
   time: string
   amount: number
-  type: 'auto' | 'random' | 'manual'
+  /** 'hand': von Hand nachgefüllt (die Waage hat den Anstieg erkannt) */
+  type: 'auto' | 'random' | 'manual' | 'hand'
   status: boolean | null
   planned_amount: number
-  /** Smart-Feed: übersprungen, weil der Napf noch gefüllt war */
+  /** Übersprungen: Napf noch gefüllt (Smart-Feed) oder Diät-Budget erreicht */
   skipped?: boolean
+  skipped_diet?: boolean
 }
 
 export interface TodayDetailed {
@@ -157,6 +159,28 @@ export interface CatProfiles {
   cats: CatProfile[]
 }
 
+export interface DietSettings {
+  enabled: boolean
+  target_grams: number | null
+  /** Sanfte Rampe: max. 5 %/Woche (Katzen-Sicherheit, hepatische Lipidose) */
+  weekly_reduction_pct: number
+  start_date: string | null
+  start_grams: number | null
+}
+
+export interface DietStatus {
+  enabled: boolean
+  budget_today: number | null
+  consumed_today: number
+  remaining: number | null
+  target_grams: number | null
+  start_grams: number | null
+  weekly_reduction_pct: number | null
+  start_date: string | null
+  /** true sobald die Rampe das Zielbudget erreicht hat */
+  at_target: boolean | null
+}
+
 export interface AppSettings {
   tank_warn_percent: number
   smart_feed: boolean
@@ -166,6 +190,36 @@ export interface AppSettings {
   mqtt: MqttSettings
   ha_discovery: boolean
   cat_profiles: CatProfiles
+  diet: DietSettings
+}
+
+export interface EatingEpisode {
+  id: string
+  ts: string
+  consumed: number
+  duration_s: number
+  rate: number
+  mean_bite: number
+  pauses: number
+  max_spike: number
+  hour: number
+  /** Vom Nutzer zugeordnete Katze (autoritativ) */
+  label: string | null
+  /** Vom Klassifikator zugeordnete Katze (ab genug Labels) */
+  auto_label: string | null
+  confidence: number | null
+}
+
+export interface ClassifierStatus {
+  labels: Record<string, number>
+  needed_per_cat: number
+  active: boolean
+}
+
+export interface EatingData {
+  episodes: EatingEpisode[]
+  classifier: ClassifierStatus
+  per_cat_today: Record<string, number>
 }
 
 export interface AppetiteState {

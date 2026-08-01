@@ -2,9 +2,12 @@
 import type {
   AppSettings,
   BackupInfo,
+  ClassifierStatus,
   HealthStats,
   ConsumptionStats,
   DailyEntry,
+  DietStatus,
+  EatingData,
   EventEntry,
   FallbackConfig,
   FallbackStatus,
@@ -127,6 +130,15 @@ export const api = {
   deleteReminder: (id: string) =>
     request<{ success: boolean }>(`/care/reminders/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   vetReportUrl: `${API}/care/report`,
+
+  // Fress-Episoden (Katzen-Signatur) & Diät
+  getEatingData: (days = 7) => get<EatingData>(`/eating/episodes?days=${days}`),
+  labelEpisode: (id: string, label: string | null) =>
+    post<{ success: boolean; classifier: ClassifierStatus }>(
+      `/eating/episodes/${encodeURIComponent(id)}/label`,
+      { label },
+    ),
+  getDietStatus: () => get<DietStatus>('/diet/status'),
 
   // Verlauf / Backup
   getEvents: (days: number) => get<EventEntry[]>(`/events?days=${days}`),
