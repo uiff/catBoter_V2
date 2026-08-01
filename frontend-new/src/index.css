@@ -3,6 +3,15 @@
 @tailwind utilities;
 
 @layer base {
+  /* Sicherheitsnetz: Eingabefelder nie unter 16 px - iOS zoomt sonst beim
+     Fokus in die Seite hinein und lässt die UI horizontal verschoben zurück.
+     (Bewusste Utility-Klassen auf den Komponenten überschreiben das.) */
+  input,
+  select,
+  textarea {
+    font-size: max(1rem, 1em);
+  }
+
   :root {
     /* Flächen (hell) */
     --background: 210 20% 98%;

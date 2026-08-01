@@ -22,7 +22,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={inputId}
             className={cn(
-              'h-11 w-full rounded-md border border-input bg-surface px-3 text-sm',
+              // text-base (16 px), NIE kleiner: iOS zoomt sonst beim Fokus in
+              // die Seite hinein und lässt sie horizontal verschoben zurück
+              'h-11 w-full rounded-md border border-input bg-surface px-3 text-base',
               'placeholder:text-muted-foreground',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               'disabled:cursor-not-allowed disabled:opacity-50',
