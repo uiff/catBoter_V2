@@ -42,11 +42,13 @@ APP_SETTINGS_DEFAULTS = {
         "password": "",
     },
     "ha_discovery": False,
-    # Katzenprofil für den Kalorienrechner
-    "cat_profile": {
-        "weight_kg": None,
-        "age_years": None,
-        "activity": "normal",
+    # Katzenprofile für den Kalorienrechner (beide fressen aus demselben
+    # Automaten - die Plan-Empfehlung ist die SUMME beider Katzen)
+    "cat_profiles": {
         "kcal_per_100g": None,
+        "cats": [
+            {"name": "Katze 1", "weight_kg": None, "age_years": None, "activity": "normal"},
+            {"name": "Katze 2", "weight_kg": None, "age_years": None, "activity": "normal"},
+        ],
     },
 }

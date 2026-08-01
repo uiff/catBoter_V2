@@ -331,15 +331,35 @@ def set_app_settings():
     if "ha_discovery" in data:
         changes["ha_discovery"] = bool(data["ha_discovery"])
 
-    if "cat_profile" in data:
-        incoming = data["cat_profile"]
+    if "cat_profiles" in data:
+        incoming = data["cat_profiles"]
         if not isinstance(incoming, dict):
-            return jsonify({"error": "Ungültiges Katzenprofil"}), 400
-        profile = dict(settings_service.get_settings().get("cat_profile") or {})
-        for key, low, high in (("weight_kg", 0.5, 20), ("age_years", 0, 30),
-                               ("kcal_per_100g", 50, 700)):
-            if key in incoming:
-                value = incoming[key]
+            return jsonify({"error": "Ungültige Katzenprofile"}), 400
+
+        profiles = {"kcal_per_100g": None, "cats": []}
+        if "kcal_per_100g" in incoming and incoming["kcal_per_100g"] is not None:
+            try:
+                kcal = float(incoming["kcal_per_100g"])
+            except (TypeError, ValueError):
+                return jsonify({"error": "Ungültiger kcal-Wert"}), 400
+            if not (50 <= kcal <= 700):
+                return jsonify({"error": "kcal/100 g muss zwischen 50 und 700 liegen"}), 400
+            profiles["kcal_per_100g"] = kcal
+
+        cats = incoming.get("cats")
+        if not isinstance(cats, list) or not (1 <= len(cats) <= 4):
+            return jsonify({"error": "1 bis 4 Katzenprofile erwartet"}), 400
+        for cat in cats:
+            if not isinstance(cat, dict):
+                return jsonify({"error": "Ungültiges Katzenprofil"}), 400
+            entry = {
+                "name": str(cat.get("name") or "Katze")[:30],
+                "weight_kg": None,
+                "age_years": None,
+                "activity": "normal",
+            }
+            for key, low, high in (("weight_kg", 0.5, 20), ("age_years", 0, 30)):
+                value = cat.get(key)
                 if value is not None:
                     try:
                         value = float(value)
@@ -347,12 +367,11 @@ def set_app_settings():
                         return jsonify({"error": f"Ungültiger Wert für {key}"}), 400
                     if not (low <= value <= high):
                         return jsonify({"error": f"{key} ausserhalb des gültigen Bereichs"}), 400
-                profile[key] = value
-        if "activity" in incoming:
-            if incoming["activity"] not in ("ruhig", "normal", "aktiv"):
-                return jsonify({"error": "Ungültige Aktivität"}), 400
-            profile["activity"] = incoming["activity"]
-        changes["cat_profile"] = profile
+                entry[key] = value
+            if cat.get("activity") in ("ruhig", "normal", "aktiv"):
+                entry["activity"] = cat["activity"]
+            profiles["cats"].append(entry)
+        changes["cat_profiles"] = profiles
 
     try:
         settings = settings_service.update_settings(changes)
