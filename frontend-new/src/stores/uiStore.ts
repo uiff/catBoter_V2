@@ -3,6 +3,8 @@ import { persist } from 'zustand/middleware'
 
 export type Theme = 'system' | 'light' | 'dark'
 export type Tab = 'dashboard' | 'plans' | 'stats' | 'settings'
+/** Sortierung der Heute-Liste: 'desc' = neueste Fütterung zuoberst */
+export type TimelineOrder = 'desc' | 'asc'
 
 const HASH_TO_TAB: Record<string, Tab> = {
   '#/': 'dashboard',
@@ -20,8 +22,10 @@ const TAB_TO_HASH: Record<Tab, string> = {
 interface UiState {
   theme: Theme
   tab: Tab
+  timelineOrder: TimelineOrder
   setTheme: (theme: Theme) => void
   setTab: (tab: Tab) => void
+  setTimelineOrder: (order: TimelineOrder) => void
 }
 
 export const useUiStore = create<UiState>()(
@@ -29,6 +33,7 @@ export const useUiStore = create<UiState>()(
     (set) => ({
       theme: 'system',
       tab: HASH_TO_TAB[window.location.hash] ?? 'dashboard',
+      timelineOrder: 'desc',
       setTheme: (theme) => {
         set({ theme })
         applyTheme(theme)
@@ -39,10 +44,11 @@ export const useUiStore = create<UiState>()(
           window.location.hash = TAB_TO_HASH[tab]
         }
       },
+      setTimelineOrder: (timelineOrder) => set({ timelineOrder }),
     }),
     {
       name: 'catboter.ui',
-      partialize: (state) => ({ theme: state.theme }),
+      partialize: (state) => ({ theme: state.theme, timelineOrder: state.timelineOrder }),
     },
   ),
 )

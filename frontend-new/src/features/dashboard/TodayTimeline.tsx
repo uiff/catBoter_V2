@@ -1,7 +1,8 @@
-import { CircleCheck, CircleSlash, CircleX, Clock, Hand, HandPlatter, PawPrint, Shuffle, Timer } from 'lucide-react'
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, CircleCheck, CircleSlash, CircleX, Clock, Hand, HandPlatter, PawPrint, Shuffle, Timer } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/Card'
 import { EmptyState, Skeleton } from '@/components/ui/Misc'
 import { formatGrams, formatTime } from '@/lib/format'
+import { useUiStore } from '@/stores/uiStore'
 import type { TodayFeeding } from '@/types/api'
 import { cn } from '@/lib/utils'
 
@@ -29,21 +30,47 @@ const TYPE_META = {
 
 export function TodayTimeline({ feedings, loading }: TodayTimelineProps) {
   const now = new Date()
+  const order = useUiStore((s) => s.timelineOrder)
+  const setOrder = useUiStore((s) => s.setTimelineOrder)
+
+  // Backend liefert aufsteigend nach Uhrzeit; 'desc' = neueste zuoberst
+  const ordered = feedings && order === 'desc' ? [...feedings].reverse() : feedings
 
   return (
     <Card>
-      <CardHeader title="Heute" icon={<Clock className="h-4 w-4" />} />
+      <CardHeader
+        title="Heute"
+        icon={<Clock className="h-4 w-4" />}
+        action={
+          <button
+            onClick={() => setOrder(order === 'desc' ? 'asc' : 'desc')}
+            className="flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={
+              order === 'desc'
+                ? 'Sortierung: neueste zuerst - tippen für chronologisch'
+                : 'Sortierung: chronologisch - tippen für neueste zuerst'
+            }
+            title={order === 'desc' ? 'Neueste zuerst' : 'Chronologisch'}
+          >
+            {order === 'desc' ? (
+              <ArrowDownWideNarrow className="h-4 w-4" />
+            ) : (
+              <ArrowUpNarrowWide className="h-4 w-4" />
+            )}
+          </button>
+        }
+      />
       <CardContent className="pt-3">
         {loading && !feedings ? (
           <div className="space-y-2">
             <Skeleton className="h-12 w-full" />
             <Skeleton className="h-12 w-full" />
           </div>
-        ) : !feedings || feedings.length === 0 ? (
+        ) : !ordered || ordered.length === 0 ? (
           <EmptyState icon={PawPrint} title="Heute noch keine Fütterung" />
         ) : (
           <ul className="divide-y divide-border">
-            {feedings.map((feeding, index) => {
+            {ordered.map((feeding, index) => {
               const status = statusFor(feeding, now)
               const skipped = feeding.skipped === true
               const meta = TYPE_META[feeding.type]
