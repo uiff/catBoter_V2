@@ -163,7 +163,9 @@ export function EatingCard() {
 
             <p className="text-xs text-muted-foreground">
               Gestrichelt = automatische Vermutung. Tippe die richtige Katze an, um sie zu
-              bestätigen oder zu korrigieren - jedes Label verbessert die Erkennung.
+              bestätigen oder zu korrigieren. Sehr kurze Episoden (ein einzelner Happen)
+              zählen für die Tagesmenge, aber nicht für die Lernphase - am meisten lernt
+              die Erkennung aus richtigen Mahlzeiten.
             </p>
           </>
         )}

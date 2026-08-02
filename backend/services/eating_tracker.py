@@ -31,6 +31,10 @@ EPISODE_END_GAP_S = 180     # 3 min ohne Abnahme = Episode beendet
 PAUSE_GAP_S = 30            # Lücke, die als Fresspause zählt
 MIN_LABELS_PER_CAT = 8      # ab dann klassifiziert der Centroid
 CONFIDENCE_MIN = 0.65       # darunter bleibt die Zuordnung "unbekannt"
+# Einzelschritt-Fragmente (1 "Biss", Dauer ~1 s, z. B. zwischen zwei
+# Hand-Schüben) tragen keine echte Signatur: Rate/Bissgrösse sind dann
+# Abtast-Artefakte. Sie zählen für Mengen, aber nicht fürs Lernen.
+MIN_SIGNATURE_DURATION_S = 5
 
 # Hand-Nachfüllung: ANHALTENDER Anstieg (>= 3 Samples ~15 s) ab dieser Menge.
 # Kurze Spitzen (Katze lehnt an) gehen wieder zurück und zählen als Spike;
@@ -276,9 +280,14 @@ def set_label(episode_id, label):
     return True
 
 
+def _has_signature(episode):
+    """Nur Episoden mit mehreren Bissen taugen als Lern-/Klassifikations-Material."""
+    return (episode.get("duration_s") or 0) >= MIN_SIGNATURE_DURATION_S
+
+
 def _centroids(episodes):
     """Mittelwert-Signatur je gelabelter Katze (z-normalisiert)."""
-    labeled = [e for e in episodes if e.get("label")]
+    labeled = [e for e in episodes if e.get("label") and _has_signature(e)]
     by_cat = {}
     for episode in labeled:
         by_cat.setdefault(episode["label"], []).append(episode)
@@ -301,6 +310,9 @@ def _centroids(episodes):
 
 def _classify(episode, episodes):
     """Nearest-Centroid mit Konfidenz aus dem Abstands-Verhältnis."""
+    if not _has_signature(episode):
+        # Fragment ohne Signatur: ehrlich "unbekannt" lassen statt raten
+        return None, None
     centroids, means, stds = _centroids(episodes)
     if centroids is None:
         return None, None
@@ -331,11 +343,13 @@ def per_cat_today():
 
 
 def classifier_status():
+    """Zählt nur LERNFÄHIGE Labels (Episoden mit Signatur) - Fragmente würden
+    den Fortschrittsbalken füllen, ohne den Klassifikator zu verbessern."""
     with _lock:
         episodes = _load()
     labeled = {}
     for episode in episodes:
-        if episode.get("label"):
+        if episode.get("label") and _has_signature(episode):
             labeled[episode["label"]] = labeled.get(episode["label"], 0) + 1
     active = len(labeled) >= 2 and all(v >= MIN_LABELS_PER_CAT for v in labeled.values())
     return {"labels": labeled, "needed_per_cat": MIN_LABELS_PER_CAT, "active": active}
