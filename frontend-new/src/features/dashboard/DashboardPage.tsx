@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { CalendarClock, Container, PawPrint, Scale, Square, Target, TriangleAlert, Utensils } from 'lucide-react'
+import { CalendarClock, Cat, Container, PawPrint, Scale, Square, Target, TriangleAlert, Utensils } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { ProgressBar, Skeleton } from '@/components/ui/Misc'
@@ -39,6 +39,17 @@ export default function DashboardPage() {
     queryFn: api.getDietStatus,
     enabled: settings.data?.diet?.enabled === true,
     refetchInterval: 60_000,
+  })
+
+  // Live: frisst gerade jemand? Nur pollen, solange Futter im Napf liegt.
+  // WICHTIG: liveEnabled auch beim Rendern prüfen - sonst friert die Zeile
+  // mit dem letzten gecachten Ergebnis ein, sobald der Napf leer ist
+  const liveEnabled = (sensor?.weight ?? 0) > 0.5
+  const live = useQuery({
+    queryKey: ['eating-live'],
+    queryFn: api.getEatingLive,
+    enabled: liveEnabled,
+    refetchInterval: 5_000,
   })
 
   // Initial-Snapshot per REST, falls der Socket noch nicht geliefert hat
@@ -131,6 +142,31 @@ export default function DashboardPage() {
                   {formatGrams(snapshot.today_total)}
                 </span>
               </div>
+
+              {/* Live: wer frisst gerade? (Waagen-Signatur, ohne Kamera) */}
+              {liveEnabled && live.data?.eating && (
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Cat className="h-4 w-4" />
+                    Am Napf
+                  </span>
+                  <span className="text-lg font-semibold">
+                    {live.data.guess ? (
+                      <>
+                        {live.data.guess}
+                        <span className="tnum text-sm font-normal text-muted-foreground">
+                          {' '}~{Math.round((live.data.confidence ?? 0) * 100)} %
+                          {' '}· {formatGrams(live.data.consumed)}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-sm font-normal text-muted-foreground">
+                        wird erkannt…
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )}
 
               {/* Diät-Budget (nur bei aktivem Diät-Modus) */}
               {diet.data?.enabled && diet.data.budget_today !== null && (

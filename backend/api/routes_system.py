@@ -357,10 +357,14 @@ def set_app_settings():
                 "weight_kg": None,
                 "age_years": None,
                 "activity": "normal",
+                "budget_g": None,
+                "min_g": None,
             }
             for key, label, low, high, unit in (
                 ("weight_kg", "Gewicht", 0.5, 20, "kg"),
                 ("age_years", "Alter", 0, 30, "Jahren"),
+                ("budget_g", "Tagesbudget", 5, 150, "g"),
+                ("min_g", "Mindestmenge", 0, 100, "g"),
             ):
                 value = cat.get(key)
                 if value is not None:
@@ -377,6 +381,27 @@ def set_app_settings():
                 entry["activity"] = cat["activity"]
             profiles["cats"].append(entry)
         changes["cat_profiles"] = profiles
+
+    if "jit" in data:
+        incoming = data["jit"]
+        if not isinstance(incoming, dict):
+            return jsonify({"error": "Ungültige JIT-Konfiguration"}), 400
+        current = dict(settings_service.get_settings().get("jit") or {})
+        jit = {
+            "enabled": bool(incoming.get("enabled", current.get("enabled", False))),
+            "starter_grams": current.get("starter_grams", 3),
+        }
+        if "starter_grams" in incoming:
+            try:
+                starter = float(incoming["starter_grams"])
+            except (TypeError, ValueError):
+                return jsonify({"error": "Ungültiges Starter-Häppchen"}), 400
+            # Untergrenze 3 g: der Gewichtssensor blendet < 3 g aus (Deadband),
+            # ein kleineres Starter-Ziel wäre für den Regelkreis unsichtbar
+            if not (3 <= starter <= 5):
+                return jsonify({"error": "Starter-Häppchen muss zwischen 3 und 5 g liegen"}), 400
+            jit["starter_grams"] = starter
+        changes["jit"] = jit
 
     if "diet" in data:
         incoming = data["diet"]

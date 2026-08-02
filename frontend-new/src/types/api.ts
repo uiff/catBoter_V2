@@ -151,6 +151,10 @@ export interface CatProfile {
   weight_kg: number | null
   age_years: number | null
   activity: 'ruhig' | 'normal' | 'aktiv'
+  /** Just-in-Time: Tagesbudget dieser Katze in g (null = unbegrenzt) */
+  budget_g?: number | null
+  /** Just-in-Time: garantierte Mindestmenge - unterhalb wird NIE gesperrt */
+  min_g?: number | null
 }
 
 export interface CatProfiles {
@@ -181,6 +185,12 @@ export interface DietStatus {
   at_target: boolean | null
 }
 
+export interface JitSettings {
+  /** Just-in-Time-Dosierung aktiv (greift erst, wenn die Erkennung gelernt hat) */
+  enabled: boolean
+  starter_grams: number
+}
+
 export interface AppSettings {
   tank_warn_percent: number
   smart_feed: boolean
@@ -191,6 +201,17 @@ export interface AppSettings {
   ha_discovery: boolean
   cat_profiles: CatProfiles
   diet: DietSettings
+  jit: JitSettings
+}
+
+export interface EatingLive {
+  eating: boolean
+  consumed: number
+  duration_s: number
+  rate: number | null
+  /** Live-Vermutung, welche Katze gerade frisst (null = unbekannt/zu früh) */
+  guess: string | null
+  confidence: number | null
 }
 
 export interface EatingEpisode {

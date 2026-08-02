@@ -18,11 +18,13 @@ interface CatForm {
   weight: string
   age: string
   activity: Activity
+  budget: string
+  min: string
 }
 
 const DEFAULT_CATS: CatForm[] = [
-  { name: 'Katze 1', weight: '', age: '', activity: 'normal' },
-  { name: 'Katze 2', weight: '', age: '', activity: 'normal' },
+  { name: 'Katze 1', weight: '', age: '', activity: 'normal', budget: '', min: '' },
+  { name: 'Katze 2', weight: '', age: '', activity: 'normal', budget: '', min: '' },
 ]
 
 /** Eingabestring -> Zahl (Dezimalkomma erlaubt); leer/ungültig = null. */
@@ -38,6 +40,8 @@ function toProfile(form: CatForm): CatProfile {
     weight_kg: parseNumber(form.weight),
     age_years: parseNumber(form.age),
     activity: form.activity,
+    budget_g: parseNumber(form.budget),
+    min_g: parseNumber(form.min),
   }
 }
 
@@ -62,6 +66,8 @@ export function CatProfileCard() {
             weight: cat.weight_kg !== null ? String(cat.weight_kg) : '',
             age: cat.age_years !== null ? String(cat.age_years) : '',
             activity: cat.activity ?? 'normal',
+            budget: cat.budget_g != null ? String(cat.budget_g) : '',
+            min: cat.min_g != null ? String(cat.min_g) : '',
           })),
         )
         setKcal(stored.kcal_per_100g !== null ? String(stored.kcal_per_100g) : '')
@@ -140,6 +146,38 @@ export function CatProfileCard() {
                       onChange={(e) => updateCat(index, { age: e.target.value })}
                     />
                   </div>
+                  {/* Pro-Katze-Konto für die Just-in-Time-Fütterung */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input
+                      id={`cat-${index}-budget`}
+                      label="Tagesbudget"
+                      type="number"
+                      min={5}
+                      max={150}
+                      suffix="g"
+                      className="tnum"
+                      placeholder="unbegrenzt"
+                      value={cat.budget}
+                      onChange={(e) => updateCat(index, { budget: e.target.value })}
+                    />
+                    <Input
+                      id={`cat-${index}-min`}
+                      label="Mindestmenge"
+                      type="number"
+                      min={0}
+                      max={100}
+                      suffix="g"
+                      className="tnum"
+                      placeholder="0"
+                      value={cat.min}
+                      onChange={(e) => updateCat(index, { min: e.target.value })}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Fürs Just-in-Time-Füttern: Unter der Mindestmenge wird diese Katze
+                    NIE gesperrt, auch wenn das Tagesbudget erreicht ist - setze sie
+                    darum bewusst (z. B. 15 g). Ohne Budget wird nie gesperrt.
+                  </p>
                   <SegmentedControl<Activity>
                     options={[
                       { value: 'ruhig', label: 'Ruhig' },

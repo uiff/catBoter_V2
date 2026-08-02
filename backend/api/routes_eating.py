@@ -36,6 +36,12 @@ def label_episode(episode_id):
     return jsonify({"success": True, "classifier": eating_tracker.classifier_status()})
 
 
+@bp.route("/eating/live")
+def eating_live():
+    """Live: frisst gerade jemand, und wer vermutlich? (für Dashboard + JIT)"""
+    return jsonify(eating_tracker.current_activity())
+
+
 @bp.route("/diet/status")
 def diet_status():
     try:

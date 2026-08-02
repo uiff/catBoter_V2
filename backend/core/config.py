@@ -53,13 +53,23 @@ APP_SETTINGS_DEFAULTS = {
         "start_date": None,
         "start_grams": None,
     },
+    # Just-in-Time-Dosierung: Napf bleibt leer, Häppchen nur solange die live
+    # erkannte Katze Budget hat. Greift NUR, wenn der Klassifikator fertig
+    # gelernt hat (>= 8 Labels je Katze) - sonst normale Fütterung.
+    "jit": {
+        "enabled": False,
+        "starter_grams": 3,
+    },
     # Katzenprofile für den Kalorienrechner (beide fressen aus demselben
-    # Automaten - die Plan-Empfehlung ist die SUMME beider Katzen)
+    # Automaten - die Plan-Empfehlung ist die SUMME beider Katzen).
+    # budget_g/min_g: Tagesbudget und garantierte Mindestmenge je Katze (JIT).
     "cat_profiles": {
         "kcal_per_100g": None,
         "cats": [
-            {"name": "Katze 1", "weight_kg": None, "age_years": None, "activity": "normal"},
-            {"name": "Katze 2", "weight_kg": None, "age_years": None, "activity": "normal"},
+            {"name": "Katze 1", "weight_kg": None, "age_years": None,
+             "activity": "normal", "budget_g": None, "min_g": None},
+            {"name": "Katze 2", "weight_kg": None, "age_years": None,
+             "activity": "normal", "budget_g": None, "min_g": None},
         ],
     },
 }

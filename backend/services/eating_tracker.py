@@ -47,6 +47,11 @@ HAND_REFILL_SAMPLES = 3
 POST_DOSING_QUIET_S = 60
 
 FEATURES = ("rate", "mean_bite", "duration_s", "pauses", "max_spike")
+# Für die LIVE-Vermutung während des Fressens: nur Merkmale, die sich schon
+# nach wenigen Bissen stabilisieren (Dauer/Pausen kennt man erst am Ende)
+LIVE_FEATURES = ("rate", "mean_bite")
+LIVE_MIN_DURATION_S = 15
+LIVE_MIN_CONSUMED_G = 2.0
 
 _lock = threading.Lock()
 _state = {
@@ -84,6 +89,34 @@ def _save(episodes):
         os.replace(tmp, EPISODES_FILE)
     except OSError as e:
         logging.warning(f"Fress-Episoden speichern fehlgeschlagen: {e}")
+
+
+def note_dosing():
+    """Dosier-Signal DIREKT stempeln (von feeding_service beim Setzen/Löschen
+    der Dosier-Flags). Kurze Motorläufe (2-6 s) können sonst komplett zwischen
+    zwei 5-s-Poll-Ticks liegen - last_dosing_ts bliebe stale und der Anstieg
+    würde als Hand-Fütterung fehlgebucht."""
+    with _lock:
+        _state["last_dosing_ts"] = time.time()
+
+
+def note_dispensed(grams):
+    """Vom Motor dosierte Menge EXAKT in die Buchhaltung übernehmen (JIT).
+
+    Statt den Anstieg aus der Waage zu erraten: die laufende Episode zieht
+    start_weight mit (consumed bleibt korrekt), die Baseline steigt mit dem
+    neuen Napf-Pegel. Kein Raten, keine Phantom-Buchungen.
+    """
+    if not grams or grams <= 0:
+        return
+    with _lock:
+        s = _state
+        s["last_dosing_ts"] = time.time()
+        s["increase_streak"] = 0
+        if s["active"]:
+            s["start_weight"] = round(s["start_weight"] + grams, 2)
+        if s["baseline"] is not None:
+            s["baseline"] = round(s["baseline"] + grams, 2)
 
 
 def sample(weight, feeding_active: bool):
@@ -174,16 +207,20 @@ def sample(weight, feeding_active: bool):
             # Katze steht auf der Waage - ignorieren (siehe oben)
             s["increase_streak"] = 0
         elif increase >= HAND_REFILL_MIN_G:
-            if now - s["last_dosing_ts"] < POST_DOSING_QUIET_S:
-                # Motor hat mitten in die Episode dosiert: Episode am Pegel
-                # VOR dem Anstieg beenden, Anstieg absorbieren (keine Buchung -
-                # die Plan-Fütterung hat ihre Menge selbst getrackt)
-                _finish_episode(baseline, now)
-                s["baseline"] = weight
-                s["increase_streak"] = 0
-                return
             s["increase_streak"] += 1
-            if s["increase_streak"] >= HAND_REFILL_SAMPLES:
+            if now - s["last_dosing_ts"] < POST_DOSING_QUIET_S:
+                if s["increase_streak"] >= 2:
+                    # Motor hat mitten in die Episode dosiert und der Anstieg
+                    # ist stabil (2 Samples - eine Anlehn-Spitze wäre wieder
+                    # abgefallen): in die Episoden-Buchhaltung übernehmen,
+                    # die Mahlzeit läuft WEITER statt zu fragmentieren.
+                    # (JIT-Häppchen werden zusätzlich exakt via note_dispensed
+                    # übernommen; dieser Pfad ist der Backstop für Plan-Feeds.)
+                    s["start_weight"] = round(s["start_weight"] + increase, 2)
+                    s["baseline"] = weight
+                    s["increase_streak"] = 0
+                    return
+            elif s["increase_streak"] >= HAND_REFILL_SAMPLES:
                 # Nutzer hat während der Episode von Hand nachgefüllt:
                 # Episode am Pegel VOR dem Anstieg beenden, Anstieg verbuchen
                 _finish_episode(baseline, now)
@@ -285,7 +322,7 @@ def _has_signature(episode):
     return (episode.get("duration_s") or 0) >= MIN_SIGNATURE_DURATION_S
 
 
-def _centroids(episodes):
+def _centroids(episodes, features=FEATURES):
     """Mittelwert-Signatur je gelabelter Katze (z-normalisiert)."""
     labeled = [e for e in episodes if e.get("label") and _has_signature(e)]
     by_cat = {}
@@ -294,30 +331,26 @@ def _centroids(episodes):
     if len(by_cat) < 2 or any(len(v) < MIN_LABELS_PER_CAT for v in by_cat.values()):
         return None, None, None
 
-    values = {f: [e.get(f, 0) or 0 for e in labeled] for f in FEATURES}
+    values = {f: [e.get(f, 0) or 0 for e in labeled] for f in features}
     means = {f: sum(v) / len(v) for f, v in values.items()}
     stds = {f: (sum((x - means[f]) ** 2 for x in v) / len(v)) ** 0.5 or 1.0
             for f, v in values.items()}
 
     def normalize(episode):
-        return [((episode.get(f, 0) or 0) - means[f]) / stds[f] for f in FEATURES]
+        return [((episode.get(f, 0) or 0) - means[f]) / stds[f] for f in features]
 
     centroids = {cat: [sum(vec[i] for vec in map(normalize, eps)) / len(eps)
-                       for i in range(len(FEATURES))]
+                       for i in range(len(features))]
                  for cat, eps in by_cat.items()}
     return centroids, means, stds
 
 
-def _classify(episode, episodes):
-    """Nearest-Centroid mit Konfidenz aus dem Abstands-Verhältnis."""
-    if not _has_signature(episode):
-        # Fragment ohne Signatur: ehrlich "unbekannt" lassen statt raten
-        return None, None
-    centroids, means, stds = _centroids(episodes)
+def _nearest(sample, episodes, features):
+    """Nearest-Centroid über die gegebenen Merkmale (sample: dict feature->wert)."""
+    centroids, means, stds = _centroids(episodes, features)
     if centroids is None:
         return None, None
-
-    vector = [((episode.get(f, 0) or 0) - means[f]) / stds[f] for f in FEATURES]
+    vector = [((sample.get(f, 0) or 0) - means[f]) / stds[f] for f in features]
     distances = {cat: sum((a - b) ** 2 for a, b in zip(vector, centroid)) ** 0.5
                  for cat, centroid in centroids.items()}
     ranked = sorted(distances.items(), key=lambda kv: kv[1])
@@ -327,6 +360,54 @@ def _classify(episode, episodes):
     if confidence < CONFIDENCE_MIN:
         return None, None
     return best_cat, confidence
+
+
+def _classify(episode, episodes):
+    """Nearest-Centroid mit Konfidenz aus dem Abstands-Verhältnis."""
+    if not _has_signature(episode):
+        # Fragment ohne Signatur: ehrlich "unbekannt" lassen statt raten
+        return None, None
+    return _nearest(episode, episodes, FEATURES)
+
+
+def current_activity():
+    """Live-Zustand: frisst gerade jemand, und wer vermutlich?
+
+    Vermutung erst ab ein paar Bissen (LIVE_MIN_*) und nur über die
+    früh stabilen Merkmale - Grundlage für Anzeige und JIT-Dosierung.
+    """
+    with _lock:
+        s = _state
+        if not s["active"] or s["last_weight"] is None:
+            return {"eating": False, "consumed": 0.0, "duration_s": 0,
+                    "rate": None, "guess": None, "confidence": None}
+        duration = max(1.0, s["last_decrease_ts"] - s["start_ts"])
+        consumed = round(max(0.0, s["start_weight"] - s["last_weight"]), 1)
+        sample = {
+            "rate": round(consumed / (duration / 60.0), 2),
+            "mean_bite": round(consumed / max(1, s["bites"]), 2),
+        }
+        episodes = _load()
+
+    guess, confidence = (None, None)
+    if duration >= LIVE_MIN_DURATION_S and consumed >= LIVE_MIN_CONSUMED_G:
+        guess, confidence = _nearest(sample, episodes, LIVE_FEATURES)
+    return {"eating": True, "consumed": consumed, "duration_s": round(duration),
+            "rate": sample["rate"], "guess": guess, "confidence": confidence}
+
+
+def jit_gate(guess, confidence, intake_today, budget_g, min_g):
+    """True = NICHT weiter dosieren (Just-in-Time).
+
+    Gesperrt wird NUR, wenn die Katze sicher erkannt ist UND ihr Tagesbudget
+    UND ihre Mindestmenge erreicht sind - im Zweifel wird dosiert
+    (Erkennungsfehler dürfen Gramm kosten, nie Mahlzeiten).
+    """
+    if guess is None or confidence is None or confidence < CONFIDENCE_MIN:
+        return False
+    if budget_g is None or budget_g <= 0:
+        return False
+    return intake_today >= budget_g and intake_today >= (min_g or 0)
 
 
 def per_cat_today():

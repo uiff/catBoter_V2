@@ -26,6 +26,9 @@
 - **Diät-Modus** — Tages-Budget für den Haushalt mit sanfter Rampe (max. 5 %/Woche, Katzen-sicher); Plan-Dosen werden aufs Rest-Budget gekappt, manuelle Fütterungen gewarnt
 - **Fress-Signatur** — die Waage erkennt einzelne Fress-Episoden (Tempo, Bissgrösse, Pausen); nach dem Labeln in der App ordnet ein Klassifikator neue Episoden der richtigen Katze zu
 - **Hand-Fütterungen** — Futter direkt in den Napf geworfen? Der anhaltende Gewichtsanstieg wird erkannt und als „Von Hand" mitgezählt (Statistik + Diät-Budget bleiben ehrlich)
+- **Pro-Katze-Fütterung (Just-in-Time)** — der Napf bleibt leer; Häppchen kommen nur, solange die live per Waagen-Signatur erkannte Katze noch Tagesbudget hat. Ohne Kamera, ohne Klappe. Sicherheits-Bias: im Zweifel wird IMMER dosiert, zurückgehaltenes Futter meldet ein Push
+- **Adaptives Anti-Schling** — die Pausen zwischen den Schüben dehnen sich automatisch, wenn die Waage Schlingen (> 20 g/min) misst
+- **Live „Am Napf"** — das Dashboard zeigt in Echtzeit, welche Katze vermutlich gerade frisst (inkl. Konfidenz)
 - **Notfall-Hotspot** — verliert der CatBoter jede Netzwerkverbindung (WLAN *und* LAN), startet er automatisch den Hotspot `CatBoter-Setup`; über `http://10.0.0.1` ist die volle App erreichbar
 - **PWA** — als App auf dem Homescreen installierbar, Hell-/Dunkel-Design automatisch
 

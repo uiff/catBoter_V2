@@ -3,6 +3,7 @@ import { AppearanceCard } from './AppearanceCard'
 import { NotificationsCard } from './NotificationsCard'
 import { FeedingCard } from './FeedingCard'
 import { DietCard } from './DietCard'
+import { JitCard } from './JitCard'
 import { CatProfileCard } from './CatProfileCard'
 import { CareCard } from './CareCard'
 import { ScaleCard } from './ScaleCard'
@@ -23,6 +24,7 @@ export default function SettingsPage() {
       <NotificationsCard />
       <FeedingCard />
       <DietCard />
+      <JitCard />
       <CatProfileCard />
       <CareCard />
       <ScaleCard />

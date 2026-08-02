@@ -8,6 +8,7 @@ import type {
   DailyEntry,
   DietStatus,
   EatingData,
+  EatingLive,
   EventEntry,
   FallbackConfig,
   FallbackStatus,
@@ -139,6 +140,7 @@ export const api = {
       { label },
     ),
   getDietStatus: () => get<DietStatus>('/diet/status'),
+  getEatingLive: () => get<EatingLive>('/eating/live'),
 
   // Verlauf / Backup
   getEvents: (days: number) => get<EventEntry[]>(`/events?days=${days}`),

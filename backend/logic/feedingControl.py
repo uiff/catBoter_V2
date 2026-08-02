@@ -223,41 +223,58 @@ def execute_feeding(target_weight, timeout_seconds=300, slow_minutes=0):
                 except Exception:
                     pass
 
-        # Dosier-Signal für den Fress-Tracker setzen: Plan-Feeds melden sich
-        # nicht über _active (das ist bewusst nur manuell), der Tracker muss
-        # Gewichtsanstiege durch den Motor aber vom Hand-Nachfüllen trennen
-        _fs = None
+        # Just-in-Time-Pfad: pro Katze dosieren - NUR wenn aktiviert UND die
+        # Erkennung fertig gelernt hat (sonst sicherer Fallback auf normal).
+        # jit_feed setzt das Dosier-Signal selbst nur um die Motorläufe,
+        # damit der Fress-Tracker zwischen den Häppchen weiterlaufen kann.
+        use_jit = False
         try:
-            from services import feeding_service as _fs
-            _fs.set_plan_dosing(True)
+            from services import settings_service, eating_tracker
+            use_jit = (bool((settings_service.get_settings().get("jit") or {}).get("enabled"))
+                       and eating_tracker.classifier_status()["active"])
         except ImportError:
             pass
 
-        # feed_until_weight liefert die gefütterte Menge direkt numerisch zurück;
-        # bei aktivem Anti-Schling-Modus läuft die Portion in Schüben
-        try:
-            if slow_minutes and slow_minutes > 0:
-                try:
-                    from services.feeding_service import chunked_feed
-                    success, message, fed_amount = chunked_feed(
-                        motor_controller, target_weight, slow_minutes, progress_cb)
-                except ImportError:
+        if use_jit:
+            from services.feeding_service import jit_feed
+            success, message, fed_amount = jit_feed(
+                motor_controller, target_weight, progress_cb)
+        else:
+            # Dosier-Signal für den Fress-Tracker setzen: Plan-Feeds melden sich
+            # nicht über _active (das ist bewusst nur manuell), der Tracker muss
+            # Gewichtsanstiege durch den Motor aber vom Hand-Nachfüllen trennen
+            _fs = None
+            try:
+                from services import feeding_service as _fs
+                _fs.set_plan_dosing(True)
+            except ImportError:
+                pass
+
+            # feed_until_weight liefert die gefütterte Menge direkt numerisch
+            # zurück; bei aktivem Anti-Schling-Modus läuft die Portion in Schüben
+            try:
+                if slow_minutes and slow_minutes > 0:
+                    try:
+                        from services.feeding_service import chunked_feed
+                        success, message, fed_amount = chunked_feed(
+                            motor_controller, target_weight, slow_minutes, progress_cb)
+                    except ImportError:
+                        success, message, fed_amount = motor_controller.feed_until_weight(
+                            target_weight_grams=target_weight,
+                            timeout_seconds=timeout_seconds,
+                            progress_cb=progress_cb
+                        )
+                else:
                     success, message, fed_amount = motor_controller.feed_until_weight(
                         target_weight_grams=target_weight,
                         timeout_seconds=timeout_seconds,
                         progress_cb=progress_cb
                     )
-            else:
-                success, message, fed_amount = motor_controller.feed_until_weight(
-                    target_weight_grams=target_weight,
-                    timeout_seconds=timeout_seconds,
-                    progress_cb=progress_cb
-                )
-        finally:
-            # Flag IMMER löschen - hängt es fest, wäre die Hand-Erkennung
-            # dauerhaft im Ruhefenster gefangen
-            if _fs is not None:
-                _fs.set_plan_dosing(False)
+            finally:
+                # Flag IMMER löschen - hängt es fest, wäre die Hand-Erkennung
+                # dauerhaft im Ruhefenster gefangen
+                if _fs is not None:
+                    _fs.set_plan_dosing(False)
         logging.info(f"[execute_feeding] Ergebnis: success={success}, message={message}, fed_amount={fed_amount:.1f}g")
 
         if notifier is not None:
@@ -543,9 +560,15 @@ def process_single_feeding(fütterung, current_time, plan_name="?", slow_minutes
         fütterung["message"] = message
         fütterung["fed_amount"] = round(already_fed + fed_amount, 2)
 
+        # Nutzer-Stopp ist TERMINAL für diesen Slot - sonst startet der
+        # Scheduler 60 s später im 10-Minuten-Fenster einfach neu und der
+        # Stopp hält keine Minute (Review-Finding)
+        if not success and "gestoppt" in (message or "").lower():
+            fütterung["attempts"] = MAX_FEEDING_ATTEMPTS
+
         # In-Memory-Backstop aktualisieren (übersteht fehlgeschlagene JSON-Saves)
         _attempts_memory[mem_key] = {
-            "attempts": attempts + 1,
+            "attempts": int(fütterung["attempts"]),
             "fed_amount": round(already_fed + fed_amount, 2),
         }
 
