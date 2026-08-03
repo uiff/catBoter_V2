@@ -57,6 +57,8 @@ export interface TodayFeeding {
   /** Übersprungen: Napf noch gefüllt (Smart-Feed) oder Diät-Budget erreicht */
   skipped?: boolean
   skipped_diet?: boolean
+  /** Wer hat diese Ausgabe gefressen (erkannte/gelabelte Episoden, g je Katze) */
+  eaten_by?: Record<string, number>
 }
 
 export interface TodayDetailed {

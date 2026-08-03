@@ -75,6 +75,35 @@ def today_detailed():
                 })
 
         feedings.sort(key=lambda f: f.get('time') or '')
+
+        # Fress-Zuordnung: erkannte/gelabelte Episoden der Waage gehören zur
+        # LETZTEN Futterausgabe davor (nur zu solchen, die wirklich Futter
+        # ausgegeben haben) -> "Gefressen: Rocco 8 g" in der Heute-Liste
+        try:
+            from services import eating_tracker
+            today_str = today.strftime('%Y-%m-%d')
+            delivered = [f for f in feedings
+                         if f.get('time') and (f.get('amount') or 0) > 0]
+            for episode in eating_tracker.list_episodes(1):
+                if not episode.get('ts', '').startswith(today_str):
+                    continue
+                cat = episode.get('label') or episode.get('auto_label')
+                if not cat:
+                    continue
+                episode_time = episode.get('ts', '')[11:16]
+                target = None
+                for feeding in delivered:
+                    if feeding['time'] <= episode_time:
+                        target = feeding
+                    else:
+                        break
+                if target is None:
+                    continue
+                eaten = target.setdefault('eaten_by', {})
+                eaten[cat] = round(eaten.get(cat, 0) + (episode.get('consumed') or 0), 1)
+        except Exception as e:
+            logging.debug(f"Fress-Zuordnung fehlgeschlagen: {e}")
+
         return jsonify({
             'date': today.strftime('%Y-%m-%d'),
             'total': consumption_manager.get_today_total(),

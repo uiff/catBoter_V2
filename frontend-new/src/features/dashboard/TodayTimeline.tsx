@@ -1,4 +1,4 @@
-import { ArrowDownWideNarrow, ArrowUpNarrowWide, CircleCheck, CircleSlash, CircleX, Clock, Hand, HandPlatter, PawPrint, Shuffle, Timer } from 'lucide-react'
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, Cat, CircleCheck, CircleSlash, CircleX, Clock, Hand, HandPlatter, PawPrint, Shuffle, Timer } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/Card'
 import { EmptyState, Skeleton } from '@/components/ui/Misc'
 import { formatGrams, formatTime } from '@/lib/format'
@@ -75,8 +75,10 @@ export function TodayTimeline({ feedings, loading }: TodayTimelineProps) {
               const skipped = feeding.skipped === true
               const meta = TYPE_META[feeding.type]
               const TypeIcon = meta.icon
+              const eatenBy = feeding.eaten_by ? Object.entries(feeding.eaten_by) : []
               return (
-                <li key={`${feeding.time}-${index}`} className="flex items-center gap-3 py-2.5">
+                <li key={`${feeding.time}-${index}`} className="py-2.5">
+                  <div className="flex items-center gap-3">
                   {skipped ? (
                     <CircleSlash className="h-5 w-5 shrink-0 text-info" />
                   ) : (
@@ -105,6 +107,14 @@ export function TodayTimeline({ feedings, loading }: TodayTimelineProps) {
                         ? formatGrams(feeding.amount)
                         : `geplant ${formatGrams(feeding.planned_amount)}`}
                     </span>
+                  )}
+                  </div>
+                  {/* Wer hat diese Ausgabe gefressen? (Waagen-Erkennung/Labels) */}
+                  {eatenBy.length > 0 && (
+                    <p className="tnum flex items-center gap-1.5 pl-8 pt-1 text-xs text-muted-foreground">
+                      <Cat className="h-3 w-3 shrink-0" />
+                      {eatenBy.map(([name, grams]) => `${name} ${grams} g`).join(' · ')}
+                    </p>
                   )}
                 </li>
               )
