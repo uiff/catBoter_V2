@@ -37,12 +37,17 @@ CONFIDENCE_MIN = 0.65       # darunter bleibt die Zuordnung "unbekannt"
 # Abtast-Artefakte. Sie zählen für Mengen, aber nicht fürs Lernen.
 MIN_SIGNATURE_DURATION_S = 5
 
-# Hand-Nachfüllung: ANHALTENDER Anstieg (>= 3 Samples ~15 s) ab dieser Menge.
-# Kurze Spitzen (Katze lehnt an) gehen wieder zurück und zählen als Spike;
-# was liegen bleibt, wurde von Hand in den Napf gegeben und zählt als Fütterung.
+# Hand-Nachfüllung: Die entscheidende Physik ist RÜCKKEHR vs. BLEIBEN.
+# Ein Maul-/Pfoten-Druck gegen die Waage (3-50 g, auch länger anhaltend!)
+# kehrt beim Loslassen zur Ausgangslage zurück - Futter bleibt liegen.
+# Gebucht wird darum NUR: (a) wenn der Anstieg GEFRESSEN wird (Episoden-
+# Start-Nachbuchung) oder (b) nach 3 min anhaltender Erhöhung ohne Rückkehr.
+# Die frühere 15-s-Sofort-Buchung erzeugte Phantom-Fütterungen, wenn eine
+# Katze das Maul gegen den leeren Napf drückte (Praxis-Vorfall 03.08. 18:49).
 HAND_REFILL_MIN_G = 3.0
 HAND_REFILL_MAX_G = 50.0    # mehr = Katze/Fremdkörper AUF der Waage, keine Buchung
-HAND_REFILL_SAMPLES = 3
+HAND_REFILL_PERSIST_SAMPLES = 36   # ~180 s liegen geblieben -> wirklich Futter
+LEAN_RETURN_TOLERANCE_G = 1.0      # so nah an der Baseline = zurückgekehrt
 # Ruhefenster nach einem Dosier-Signal: Anstiege stammen dann vom MOTOR und
 # werden nur in die Baseline übernommen, nie als Hand-Fütterung gebucht
 POST_DOSING_QUIET_S = 60
@@ -169,11 +174,19 @@ def sample(weight, feeding_active: bool):
                 s["baseline"] = weight
                 s["increase_streak"] = 0
             elif decrease >= DECREASE_G and last >= MIN_CONSUMED_G:
+                rise = last - baseline
+                # ANLEHN-AUFLÖSUNG: der Anstieg kehrt mit diesem Abfall zur
+                # Baseline zurück -> Maul/Pfote gegen die Waage, KEIN Futter.
+                # Weder buchen noch eine Episode starten.
+                if (s["increase_streak"] > 0 and rise >= HAND_REFILL_MIN_G
+                        and abs(weight - baseline) <= LEAN_RETURN_TOLERANCE_G):
+                    s["increase_streak"] = 0
+                    s["baseline"] = weight
+                    return
                 # Unerklärter Anstieg direkt vor dem Fressen? Dann wurde von
                 # Hand geschüttet und eine Katze hat SOFORT losgelegt - der
                 # Anstieg war nie lange genug stabil für die normale Buchung.
                 # Differenz zum letzten erklärten Pegel jetzt nachbuchen.
-                rise = last - baseline
                 if (HAND_REFILL_MIN_G <= rise <= HAND_REFILL_MAX_G
                         and now - s["last_dosing_ts"] >= POST_DOSING_QUIET_S):
                     _register_hand_refill(round(rise, 1))
@@ -191,9 +204,11 @@ def sample(weight, feeding_active: bool):
                     s["baseline"] = weight
                     s["increase_streak"] = 0
                     return
-                # Baseline NICHT nachziehen, sonst ist der Anstieg unsichtbar
+                # Baseline NICHT nachziehen, sonst ist der Anstieg unsichtbar.
+                # Gebucht wird erst nach ~3 min OHNE Rückkehr zur Baseline -
+                # ein Maul-Druck hält keine 3 Minuten durch, Futter schon
                 s["increase_streak"] += 1
-                if s["increase_streak"] >= HAND_REFILL_SAMPLES:
+                if s["increase_streak"] >= HAND_REFILL_PERSIST_SAMPLES:
                     _register_hand_refill(round(increase, 1))
                     s["baseline"] = weight
                     s["increase_streak"] = 0
@@ -217,6 +232,15 @@ def sample(weight, feeding_active: bool):
                 # rate/mean_bite/pauses mit dem Artefakt zu verfälschen
                 _finish_episode(weight, now)
                 s["baseline"] = weight
+                s["increase_streak"] = 0
+                return
+            if (s["increase_streak"] > 0 and (last - baseline) >= HAND_REFILL_MIN_G
+                    and abs(weight - baseline) <= LEAN_RETURN_TOLERANCE_G):
+                # Anlehn-Auflösung mitten in der Mahlzeit (Druck kehrt zur
+                # Baseline zurück): kein Biss - als Anlehn-Spitze verbuchen
+                spike = round(last - baseline, 1)
+                if spike > s["max_spike"]:
+                    s["max_spike"] = spike
                 s["increase_streak"] = 0
                 return
             gap = now - s["last_decrease_ts"]
@@ -243,9 +267,10 @@ def sample(weight, feeding_active: bool):
                     s["baseline"] = weight
                     s["increase_streak"] = 0
                     return
-            elif s["increase_streak"] >= HAND_REFILL_SAMPLES:
-                # Nutzer hat während der Episode von Hand nachgefüllt:
-                # Episode am Pegel VOR dem Anstieg beenden, Anstieg verbuchen
+            elif s["increase_streak"] >= HAND_REFILL_PERSIST_SAMPLES:
+                # Anstieg liegt seit ~3 min unangetastet da: Nutzer hat während
+                # der Episode von Hand nachgefüllt - Episode am Pegel VOR dem
+                # Anstieg beenden, Anstieg verbuchen
                 _finish_episode(baseline, now)
                 _register_hand_refill(round(increase, 1))
                 s["baseline"] = weight
