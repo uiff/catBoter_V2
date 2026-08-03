@@ -87,8 +87,8 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-3">
-      {/* Hero: Live-Status */}
-      <Card>
+      {/* Hero: Live-Status - das Statement-Element mit Petrol-Schein */}
+      <Card className="hero-card">
         <CardContent className="space-y-4">
           {!snapshot ? (
             <div className="space-y-3">
@@ -105,13 +105,14 @@ export default function DashboardPage() {
                     <Container className="h-4 w-4" />
                     Tank
                   </span>
-                  <span className="tnum text-lg font-semibold">
+                  <span className="tnum text-2xl font-semibold tracking-tight">
                     {formatPercent(tank?.percent)}
                   </span>
                 </div>
                 <ProgressBar
                   value={tank?.percent ?? 0}
                   max={100}
+                  className="h-2.5"
                   colorClass={tankColor(tank?.state)}
                 />
                 {typeof tank?.range_days === 'number' && (

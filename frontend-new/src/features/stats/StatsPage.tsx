@@ -89,7 +89,7 @@ export default function StatsPage() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold">Statistik</h1>
+        <h1 className="text-xl font-semibold tracking-tight">Statistik</h1>
         <SegmentedControl<Period>
           className="w-44"
           options={[

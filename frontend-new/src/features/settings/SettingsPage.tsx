@@ -18,7 +18,7 @@ import { BackupCard } from './BackupCard'
 export default function SettingsPage() {
   return (
     <div className="space-y-3">
-      <h1 className="px-1 text-lg font-semibold">System</h1>
+      <h1 className="px-1 text-xl font-semibold tracking-tight">System</h1>
 
       <AppearanceCard />
       <NotificationsCard />

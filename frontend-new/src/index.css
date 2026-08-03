@@ -44,8 +44,11 @@
     --chart-3: 262 60% 55%;
     --chart-grid: 214 15% 90%;
 
-    --radius: 0.75rem;
-    --shadow-card: 0 1px 2px hsl(220 30% 10% / 0.06), 0 1px 1px hsl(220 30% 10% / 0.04);
+    --radius: 1rem;
+    /* Hell: Karten schweben mit echtem, weichem Schatten - OHNE Rand
+       (Rand+Schatten zugleich ergibt die "Geisterkarte") */
+    --card-border: 0 0% 100% / 0;
+    --shadow-card: 0 1px 2px hsl(215 35% 15% / 0.05), 0 4px 16px -6px hsl(215 35% 15% / 0.10);
     --header-h: 56px;
     --tabbar-h: 56px;
 
@@ -79,6 +82,8 @@
     --chart-2: 210 95% 62%;
     --chart-3: 262 70% 68%;
     --chart-grid: 220 12% 18%;
+    /* Dunkel: Haarlinie statt Schatten (Schatten sind auf dunklem Grund unsichtbar) */
+    --card-border: 220 12% 20%;
     --shadow-card: none;
 
     color-scheme: dark;
@@ -143,6 +148,19 @@
   }
   .pt-safe {
     padding-top: env(safe-area-inset-top);
+  }
+
+  /* Hero-Karte: dezenter Petrol-Schein aus der oberen rechten Ecke -
+     das eine Statement-Element der App, im iotueli-Markenton */
+  .hero-card {
+    background:
+      radial-gradient(130% 90% at 100% 0%, hsl(var(--primary) / 0.09), transparent 55%),
+      hsl(var(--surface));
+  }
+  .dark .hero-card {
+    background:
+      radial-gradient(130% 90% at 100% 0%, hsl(var(--primary) / 0.14), transparent 55%),
+      hsl(var(--surface));
   }
 }
 

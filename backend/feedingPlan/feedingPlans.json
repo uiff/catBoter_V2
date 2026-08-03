@@ -84,9 +84,11 @@
         {
           "time": "20:32",
           "weight": 11.0,
-          "status": null,
-          "attempts": 0,
-          "fed_amount": 0.0
+          "status": true,
+          "attempts": 1,
+          "fed_amount": 13.29,
+          "last_attempt": "2026-08-03T20:34:17.511122",
+          "message": "13.3g gefüttert (Soll: 11.0g)"
         }
       ]
     },

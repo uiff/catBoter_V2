@@ -13,6 +13,7 @@ export default {
         foreground: 'hsl(var(--foreground))',
         'muted-foreground': 'hsl(var(--muted-foreground))',
         border: 'hsl(var(--border))',
+        cardborder: 'hsl(var(--card-border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
         primary: {

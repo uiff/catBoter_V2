@@ -17,7 +17,7 @@ export function StatTile({ caption, value, sub, loading }: StatTileProps) {
         {loading ? (
           <Skeleton className="h-8 w-16" />
         ) : (
-          <p className="tnum text-2xl font-semibold">{value}</p>
+          <p className="tnum text-2xl font-semibold tracking-tight">{value}</p>
         )}
         {!loading && sub && <p className="tnum text-xs text-muted-foreground">{sub}</p>}
       </CardContent>

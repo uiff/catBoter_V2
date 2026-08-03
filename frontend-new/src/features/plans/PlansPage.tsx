@@ -136,7 +136,7 @@ export default function PlansPage() {
     <div className="space-y-3">
       {/* Titelzeile */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Fütterungspläne</h1>
+        <h1 className="text-xl font-semibold tracking-tight">Fütterungspläne</h1>
         <div className="flex items-center gap-1.5">
           <Button
             variant="ghost"
