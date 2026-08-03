@@ -32,7 +32,7 @@ function formatDay(dateStr: string): string {
 export function TrendChart({ entries, loading, todayDate }: TrendChartProps) {
   return (
     <Card>
-      <CardHeader title="Verlauf" icon={<TrendingUp className="h-4 w-4" />} />
+      <CardHeader title="Trend" icon={<TrendingUp className="h-4 w-4" />} />
       <CardContent className="pt-3">
         {loading && !entries ? (
           <Skeleton className="h-[180px] w-full" />

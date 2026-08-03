@@ -1,5 +1,5 @@
 import { Cpu } from 'lucide-react'
-import { Card, CardContent, CardHeader } from '@/components/ui/Card'
+import { CollapsibleCard } from '@/components/ui/CollapsibleCard'
 import { ProgressBar, Skeleton } from '@/components/ui/Misc'
 import { formatBytes, formatPercent } from '@/lib/format'
 import type { SystemStats } from '@/types/api'
@@ -19,9 +19,16 @@ function diskColor(percent: number): string {
 /** Systemzustand: CPU, Temperatur, RAM und Speicherplatz. */
 export function SystemStatsCard({ stats, loading }: SystemStatsCardProps) {
   return (
-    <Card>
-      <CardHeader title="System" icon={<Cpu className="h-4 w-4" />} />
-      <CardContent className="space-y-3 pt-3">
+    <CollapsibleCard
+      title="System"
+      icon={<Cpu className="h-4 w-4" />}
+      summary={
+        stats?.temperature !== null && stats?.temperature !== undefined
+          ? `${stats.temperature.toFixed(0)} °C`
+          : undefined
+      }
+    >
+      <div className="space-y-3 pt-1">
         {loading && !stats ? (
           <div className="space-y-2">
             <Skeleton className="h-6 w-full" />
@@ -76,7 +83,7 @@ export function SystemStatsCard({ stats, loading }: SystemStatsCardProps) {
             </div>
           </>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </CollapsibleCard>
   )
 }

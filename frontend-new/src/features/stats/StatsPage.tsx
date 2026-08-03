@@ -128,7 +128,9 @@ export default function StatsPage() {
 
       <TrendChart entries={daily.data} loading={daily.isLoading} todayDate={todayIso} />
 
-      <TodayTimeline feedings={today.data?.feedings} loading={today.isLoading} />
+      {/* Listen-Karten aufklappbar (wie die System-Seite): Kennzahlen und
+          Trend bleiben auf einen Blick, der Rest öffnet sich bei Bedarf */}
+      <TodayTimeline feedings={today.data?.feedings} loading={today.isLoading} collapsible />
 
       <EventsCard />
 

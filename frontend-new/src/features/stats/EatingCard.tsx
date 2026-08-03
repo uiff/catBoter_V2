@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Cat, PawPrint } from 'lucide-react'
 import { toast } from 'sonner'
-import { Card, CardContent, CardHeader } from '@/components/ui/Card'
+import { CollapsibleCard } from '@/components/ui/CollapsibleCard'
 import { EmptyState, Skeleton } from '@/components/ui/Misc'
 import { api, ApiError } from '@/lib/api'
 import { formatGrams } from '@/lib/format'
@@ -55,9 +55,8 @@ export function EatingCard() {
   }
 
   return (
-    <Card>
-      <CardHeader title="Wer hat gefressen?" icon={<Cat className="h-4 w-4" />} />
-      <CardContent className="space-y-3 pt-3">
+    <CollapsibleCard title="Wer hat gefressen?" icon={<Cat className="h-4 w-4" />}>
+      <div className="space-y-3 pt-1">
         {data.isLoading ? (
           <div className="space-y-2">
             <Skeleton className="h-6 w-full" />
@@ -169,7 +168,7 @@ export function EatingCard() {
             </p>
           </>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </CollapsibleCard>
   )
 }

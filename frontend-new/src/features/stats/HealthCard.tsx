@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { FileHeart, HeartPulse, TrendingDown, TrendingUp } from 'lucide-react'
-import { Card, CardContent, CardHeader } from '@/components/ui/Card'
+import { CollapsibleCard } from '@/components/ui/CollapsibleCard'
 import { EmptyState, Skeleton } from '@/components/ui/Misc'
 import { api } from '@/lib/api'
 import { recommendedGramsPerDay } from '@/lib/calories'
@@ -41,9 +41,8 @@ export function HealthCard() {
   const weekWithinRange = weekDeviation !== null && Math.abs(weekDeviation) <= 0.15
 
   return (
-    <Card>
-      <CardHeader title="Gesundheit" icon={<HeartPulse className="h-4 w-4" />} />
-      <CardContent className="space-y-3 pt-3">
+    <CollapsibleCard title="Gesundheit" icon={<HeartPulse className="h-4 w-4" />}>
+      <div className="space-y-3 pt-1">
         {health.isLoading ? (
           <div className="space-y-2">
             <Skeleton className="h-6 w-full" />
@@ -148,7 +147,7 @@ export function HealthCard() {
             </p>
           </>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </CollapsibleCard>
   )
 }

@@ -15,7 +15,7 @@ import {
   Power,
   Target,
 } from 'lucide-react'
-import { Card, CardContent, CardHeader } from '@/components/ui/Card'
+import { CollapsibleCard } from '@/components/ui/CollapsibleCard'
 import { EmptyState, SegmentedControl, Skeleton } from '@/components/ui/Misc'
 import { api } from '@/lib/api'
 import { formatGrams } from '@/lib/format'
@@ -60,23 +60,16 @@ export function EventsCard() {
   })
 
   return (
-    <Card>
-      <CardHeader
-        title="Verlauf"
-        icon={<History className="h-4 w-4" />}
-        action={
-          <SegmentedControl<Period>
-            className="w-40"
-            options={[
-              { value: '7', label: '7 Tage' },
-              { value: '30', label: '30 Tage' },
-            ]}
-            value={period}
-            onChange={setPeriod}
-          />
-        }
-      />
-      <CardContent className="space-y-3 pt-3">
+    <CollapsibleCard title="Verlauf" icon={<History className="h-4 w-4" />}>
+      <div className="space-y-3 pt-1">
+        <SegmentedControl<Period>
+          options={[
+            { value: '7', label: '7 Tage' },
+            { value: '30', label: '30 Tage' },
+          ]}
+          value={period}
+          onChange={setPeriod}
+        />
         {events.isLoading ? (
           <div className="space-y-2">
             <Skeleton className="h-10 w-full" />
@@ -120,7 +113,7 @@ export function EventsCard() {
           <FileDown className="h-4 w-4" />
           CSV exportieren
         </a>
-      </CardContent>
-    </Card>
+      </div>
+    </CollapsibleCard>
   )
 }
