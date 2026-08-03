@@ -71,12 +71,19 @@ export function EatingCard() {
           />
         ) : (
           <>
-            {/* Lernstand des Klassifikators */}
+            {/* Lernstand des Klassifikators - Zähler läuft bewusst über die
+                Schwelle hinaus weiter: jedes zusätzliche Label schärft die
+                Profile, 8 ist nur das Minimum zum Einschalten */}
             {classifier &&
               (classifier.active ? (
                 <div className="rounded-md bg-success-soft p-3 text-sm text-success">
-                  Erkennung aktiv - neue Episoden werden automatisch zugeordnet.
-                  Zuordnungen lassen sich weiterhin korrigieren.
+                  <p className="font-medium">Erkennung aktiv</p>
+                  <p className="tnum pt-0.5">
+                    {catNames
+                      .map((name) => `${name} ${classifier.labels[name] ?? 0} Labels`)
+                      .join(' · ')}{' '}
+                    - weiter labeln und Vermutungen korrigieren macht sie genauer.
+                  </p>
                 </div>
               ) : (
                 <div className="rounded-md bg-info-soft p-3 text-sm text-info">
@@ -85,10 +92,11 @@ export function EatingCard() {
                     {catNames
                       .map(
                         (name) =>
-                          `${name} ${Math.min(classifier.labels[name] ?? 0, classifier.needed_per_cat)}/${classifier.needed_per_cat}`,
+                          `${name} ${classifier.labels[name] ?? 0}/${classifier.needed_per_cat}`,
                       )
                       .join(' · ')}{' '}
-                    Episoden gelabelt - danach ordnet CatBoter automatisch zu.
+                    Episoden gelabelt - ab {classifier.needed_per_cat} je Katze ordnet
+                    CatBoter automatisch zu.
                   </p>
                 </div>
               ))}

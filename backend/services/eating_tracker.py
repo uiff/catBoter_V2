@@ -24,6 +24,7 @@ from core.config import DATA_DIR
 
 EPISODES_FILE = DATA_DIR / "eating_episodes.json"
 MAX_EPISODES = 200
+MAX_LABELED_EPISODES = 200  # Trainingsmaterial: überlebt die normale Rotation
 MIN_CONSUMED_G = 2.0        # kleinere Episoden sind Messrauschen
 MAX_CONSUMED_G = 100.0      # grössere "Episoden" sind physikalisch kein Fressen
 DECREASE_G = 0.5            # ab so viel Abnahme zählt ein "Biss"
@@ -101,9 +102,18 @@ def _load():
 
 def _save(episodes):
     try:
+        # GELABELTE Episoden sind das Trainingsmaterial des Klassifikators -
+        # sie dürfen NICHT aus dem 200er-Fenster herausrollen (sonst würde
+        # die Erkennung nach Wochen still wieder deaktiviert). Ungelabelte
+        # füllen den Rest des Fensters auf, chronologisch sortiert.
+        labeled = [e for e in episodes if e.get("label")][-MAX_LABELED_EPISODES:]
+        unlabeled_keep = max(50, MAX_EPISODES - len(labeled))
+        unlabeled = [e for e in episodes if not e.get("label")][-unlabeled_keep:]
+        kept = sorted(labeled + unlabeled, key=lambda e: e.get("ts", ""))
+
         tmp = EPISODES_FILE.with_suffix(".json.tmp")
         with open(tmp, "w") as f:
-            json.dump(episodes[-MAX_EPISODES:], f, indent=2, ensure_ascii=False)
+            json.dump(kept, f, indent=2, ensure_ascii=False)
             f.flush()
             os.fsync(f.fileno())
         os.replace(tmp, EPISODES_FILE)
