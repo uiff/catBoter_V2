@@ -48,5 +48,36 @@
     "dailyWeight": 44.0,
     "active": true,
     "isRandomGenerated": true
+  },
+  {
+    "planName": "RandomGen_Ayla Diet Plan_20260803",
+    "selectedDays": [
+      "Montag"
+    ],
+    "feedingSchedule": {
+      "Montag": [
+        {
+          "time": "07:52",
+          "weight": 11.0
+        },
+        {
+          "time": "12:05",
+          "weight": 11.0
+        },
+        {
+          "time": "18:47",
+          "weight": 11.0
+        },
+        {
+          "time": "20:32",
+          "weight": 11.0
+        }
+      ]
+    },
+    "weightMode": "daily",
+    "dailyWeight": 44.0,
+    "active": true,
+    "isRandomGenerated": true,
+    "slowFeedMinutes": 0
   }
 ]

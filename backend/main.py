@@ -142,6 +142,13 @@ def background_sensor_polling():
                     tank_service.record_daily_snapshot(last_total)
                 except Exception as e:
                     logging.warning(f"Tank-Snapshot fehlgeschlagen: {e}")
+                # Zufallsplan: neue Tageszeiten generieren (fehlte bis V3.5 -
+                # ab dem Folgetag der Aktivierung wurde sonst NICHT gefüttert)
+                try:
+                    from api.routes_plans import regenerate_active_random_plans
+                    regenerate_active_random_plans()
+                except Exception as e:
+                    logging.error(f"Random-Tagesplan-Regeneration fehlgeschlagen: {e}")
                 # Tägliche Gesundheits-Checks: Appetit-Trend + fällige Erinnerungen
                 try:
                     health_monitor.check_appetite_daily()
@@ -214,6 +221,14 @@ if __name__ == '__main__':
 
         # Plan-Fütterungen senden Realtime-Events
         feedingControl.set_feeding_notifier(_FeedingNotifier())
+
+        # Heilung: fehlt der heutige Random-Tagesplan (Neustart über
+        # Mitternacht), wird er nachgeneriert - sonst bleibt der Tag futterlos
+        try:
+            from api.routes_plans import ensure_today_random_plan
+            ensure_today_random_plan()
+        except Exception as e:
+            logging.warning(f"Random-Plan-Startheilung fehlgeschlagen: {e}")
 
         # MQTT starten (falls in den Einstellungen aktiviert)
         try:

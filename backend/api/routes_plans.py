@@ -473,6 +473,58 @@ def activate_random_plan():
         return jsonify({'error': str(e)}), 500
 
 
+def regenerate_active_random_plans():
+    """Tagesplan des aktiven Random-Plans neu erzeugen (Mitternacht/Heilung).
+
+    Entfernt dabei ALLE generierten Tagespläne - auch die vergangener Tage:
+    ein liegengebliebener Samstags-Plan würde sonst am nächsten Samstag
+    ZUSÄTZLICH zum frisch generierten füttern. Ohne diese Funktion wurde der
+    Zufallsplan nur bei Aktivierung generiert und das Gerät fütterte ab dem
+    Folgetag gar nicht mehr (Praxis-Vorfall 2026-08-02/03).
+    Returns True, wenn sich die Plan-Datei geändert hat.
+    """
+    random_plans = load_random_plans()
+    active = next((p for p in random_plans if p.get('active', False)), None)
+
+    feeding_plans = load_feeding_plans()
+    cleaned = [p for p in feeding_plans if not p.get('isRandomGenerated', False)]
+    changed = len(cleaned) != len(feeding_plans)
+
+    if active is not None:
+        temp_plan, feeding_times, error = _generate_today_plan(active)
+        if temp_plan is not None:
+            cleaned.append(temp_plan)
+            changed = True
+            logging.info(f"Random-Tagesplan generiert: {len(feeding_times)} "
+                         f"Fütterungen ({', '.join(feeding_times)})")
+        elif error == 'weekend':
+            logging.info("Random-Plan: heute laut Konfiguration keine Fütterungen")
+        elif error:
+            logging.error(f"Random-Tagesplan-Generierung fehlgeschlagen: {error}")
+
+    if changed:
+        save_feeding_plans(cleaned)
+        realtime.emit_plans_updated()
+    return changed
+
+
+def ensure_today_random_plan():
+    """Heilung beim Backend-Start: fehlt der heutige Tagesplan eines aktiven
+    Random-Plans (Neustart über Mitternacht, Absturz), wird er nachgeneriert.
+    Existiert er bereits, passiert NICHTS - sonst gingen die heutigen
+    Fütterungs-Status verloren und es würde doppelt gefüttert."""
+    random_plans = load_random_plans()
+    if not any(p.get('active', False) for p in random_plans):
+        return False
+    today_str = datetime.now().strftime('%Y%m%d')
+    feeding_plans = load_feeding_plans()
+    if any(p.get('isRandomGenerated', False) and today_str in p.get('planName', '')
+           for p in feeding_plans):
+        return False
+    logging.warning("Heutiger Random-Tagesplan fehlt - generiere nach")
+    return regenerate_active_random_plans()
+
+
 @bp.route('/random_plan/generate_now', methods=['POST'])
 def generate_random_now():
     """Neue Random-Zeiten für den aktiven Random-Plan generieren."""

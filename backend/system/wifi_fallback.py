@@ -27,6 +27,10 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
+# Selbstheilung: so oft versucht ein AUTOMATISCH gestarteter Hotspot die
+# Rückkehr ins Heim-WLAN (manuell gestartete Hotspots bleiben unangetastet)
+AP_RETRY_INTERVAL_S = 600
+
 
 class WiFiFallbackManager:
     """Verwaltet automatischen WiFi-Fallback zu Access Point Modus."""
@@ -42,6 +46,8 @@ class WiFiFallbackManager:
         self.ap_active = self.is_ap_active()  # Realität statt Annahme (übersteht Service-Restart)
         self.failed_checks = 0
         self.max_failed_checks = 3  # Nach 3 Fehlversuchen AP aktivieren
+        self.ap_since = 0.0    # wann der AP aktiviert wurde (für die Selbstheilung)
+        self.ap_auto = False   # True = AP kam automatisch (nur dann Rückkehr-Versuche)
         self.has_nmcli = self._check_nmcli()
 
     @staticmethod
@@ -354,6 +360,9 @@ dhcp-option=3,{self.config['ip_address']}
 dhcp-option=6,{self.config['ip_address']}
 server=8.8.8.8
 listen-address={self.config['ip_address']}
+# Nur an die AP-Adresse binden - kollidiert sonst mit jedem anderen
+# Dienst auf Port 53 (genau das liess den Hotspot-DHCP nachts scheitern)
+bind-interfaces
 
 # Captive Portal - alle DNS Anfragen zu uns umleiten
 address=/#/{self.config['ip_address']}
@@ -385,6 +394,9 @@ address=/#/{self.config['ip_address']}
                     if name == 'enable_ap':
                         logger.info("Befehl vom Backend: enable_ap")
                         ok = self.enable_access_point()
+                        # Manuell gestarteter AP bleibt an (keine Selbstheilung)
+                        self.ap_auto = False
+                        self.ap_since = time.time()
                         self.write_result('enable_ap', ok,
                                           'Hotspot aktiv' if ok else 'Hotspot-Start fehlgeschlagen')
                     elif name == 'disable_ap':
@@ -411,9 +423,29 @@ address=/#/{self.config['ip_address']}
                             if self.failed_checks >= self.max_failed_checks:
                                 logger.warning("Netzwerk dauerhaft verloren - aktiviere AP")
                                 self.enable_access_point()
+                                self.ap_auto = True
+                                self.ap_since = time.time()
                     elif self.config['enabled'] and self.ap_active:
                         # AP-Zustand mit Realität abgleichen (hostapd kann sterben)
                         self.ap_active = self.is_ap_active()
+                        if not self.ap_active:
+                            self.ap_since = 0.0
+                        elif (self.ap_auto
+                              and now - self.ap_since >= AP_RETRY_INTERVAL_S):
+                            # SELBSTHEILUNG: Nach einem kurzen Router-Aussetzer
+                            # darf das Gerät nicht stundenlang im Hotspot
+                            # stranden - alle 10 min Rückkehr ins WLAN versuchen
+                            logger.info("AP-Modus: versuche Rückkehr ins Heim-WLAN...")
+                            self.disable_access_point()
+                            time.sleep(20)  # NetworkManager Zeit zum Verbinden geben
+                            if self.is_network_connected():
+                                logger.info("Heim-WLAN wiederhergestellt - Hotspot bleibt aus")
+                                self.failed_checks = 0
+                                self.ap_since = 0.0
+                            else:
+                                logger.warning("WLAN weiterhin nicht erreichbar - Hotspot wieder an")
+                                self.enable_access_point()
+                                self.ap_since = time.time()
                     self.write_status()
 
                 time.sleep(TICK)
