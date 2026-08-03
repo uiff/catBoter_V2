@@ -2,6 +2,8 @@
 import type {
   AppSettings,
   BackupInfo,
+  CatWeightEntry,
+  CatWeights,
   ClassifierStatus,
   HealthStats,
   ConsumptionStats,
@@ -141,6 +143,16 @@ export const api = {
     ),
   getDietStatus: () => get<DietStatus>('/diet/status'),
   getEatingLive: () => get<EatingLive>('/eating/live'),
+
+  // Gewichts-Tagebuch
+  getCatWeights: () => get<CatWeights>('/care/weights'),
+  addCatWeight: (cat: string, kg: number) =>
+    post<{ success: boolean; entries: CatWeightEntry[] }>('/care/weights', { cat, kg }),
+  deleteCatWeight: (cat: string, date: string) =>
+    request<{ success: boolean }>(
+      `/care/weights/${encodeURIComponent(cat)}/${encodeURIComponent(date)}`,
+      { method: 'DELETE' },
+    ),
 
   // Verlauf / Backup
   getEvents: (days: number) => get<EventEntry[]>(`/events?days=${days}`),

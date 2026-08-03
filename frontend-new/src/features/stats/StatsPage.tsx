@@ -13,6 +13,7 @@ import { DayDetailSheet } from './DayDetailSheet'
 import { SystemStatsCard } from './SystemStatsCard'
 import { EventsCard } from './EventsCard'
 import { HealthCard } from './HealthCard'
+import { WeightCard } from './WeightCard'
 import { EatingCard } from './EatingCard'
 
 type Period = '7' | '30'
@@ -178,6 +179,8 @@ export default function StatsPage() {
       <EventsCard />
 
       <HealthCard />
+
+      <WeightCard />
 
       <EatingCard />
 

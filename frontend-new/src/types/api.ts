@@ -290,6 +290,14 @@ export interface EventEntry {
   grams?: number
 }
 
+export interface CatWeightEntry {
+  date: string
+  kg: number
+}
+
+/** Gewichts-Tagebuch: Katzenname -> chronologische Wiegungen */
+export type CatWeights = Record<string, CatWeightEntry[]>
+
 export interface BackupInfo {
   exists: boolean
   size?: number

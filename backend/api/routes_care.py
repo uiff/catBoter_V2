@@ -52,6 +52,30 @@ def delete_reminder(reminder_id):
     return jsonify({"success": True})
 
 
+@bp.route("/care/weights")
+def cat_weights():
+    from services import cat_weight_service
+    return jsonify(cat_weight_service.get_all())
+
+
+@bp.route("/care/weights", methods=["POST"])
+def add_cat_weight():
+    from services import cat_weight_service
+    data = request.get_json(silent=True) or {}
+    ok, result = cat_weight_service.add_entry(data.get("cat"), data.get("kg"), data.get("date"))
+    if not ok:
+        return jsonify({"error": result}), 400
+    return jsonify({"success": True, "entries": result}), 201
+
+
+@bp.route("/care/weights/<cat>/<day>", methods=["DELETE"])
+def delete_cat_weight(cat, day):
+    from services import cat_weight_service
+    if not cat_weight_service.delete_entry(cat, day):
+        return jsonify({"error": "Eintrag nicht gefunden"}), 404
+    return jsonify({"success": True})
+
+
 @bp.route("/care/report")
 def vet_report():
     """Druckfertiger Gesundheitsbericht (HTML) für den Tierarztbesuch."""
@@ -84,6 +108,20 @@ def vet_report():
             f"<td class='v'>{b['rate'] / max(1, b['meals']):.1f} g/min</td></tr>"
             for name, b in sorted(by_cat.items()))
         unknown_share = (unknown_g / total_g * 100) if total_g > 0 else 0
+
+        # Gewichts-Tagebuch: letzte Messungen + Veränderung je Katze
+        from services import cat_weight_service
+        weight_rows = ""
+        for cat_name, entries in sorted(cat_weight_service.get_all().items()):
+            if not entries:
+                continue
+            latest = entries[-1]
+            delta = latest["kg"] - entries[0]["kg"] if len(entries) > 1 else None
+            delta_str = (f"{'+' if delta >= 0 else ''}{delta:.2f} kg" if delta is not None else "–")
+            weight_rows += (f"<tr><td>{cat_name}</td>"
+                            f"<td class='v'>{latest['kg']:.2f} kg</td>"
+                            f"<td class='v'>{latest['date']}</td>"
+                            f"<td class='v'>{delta_str}</td></tr>")
 
         daily = consumption_manager.get_daily(30)
         stats = consumption_manager.get_stats()
@@ -148,6 +186,10 @@ Zeitraum: letzte 30 Tage · Hinweis: Werte umfassen ALLE Katzen des Haushalts ge
 {cat_rows or "<tr><td colspan='5'>Noch keine zugeordneten Fress-Episoden</td></tr>"}</table>
 <p class="muted">Nicht zuordenbare Fressmenge: {unknown_share:.0f} % - die Erkennung arbeitet
 über die Fress-Signatur der Waage und ist ein Richtwert.</p>
+
+<h2>Körpergewicht</h2>
+<table><tr><th>Katze</th><th class='v'>Aktuell</th><th class='v'>Gewogen am</th><th class='v'>Veränderung gesamt</th></tr>
+{weight_rows or "<tr><td colspan='4'>Noch keine Wiegungen erfasst</td></tr>"}</table>
 
 <h2>Tagesmengen</h2>
 <table><tr><th>Datum</th><th class='v'>Menge</th><th class='v'>Fütterungen</th></tr>
