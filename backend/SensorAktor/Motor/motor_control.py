@@ -118,7 +118,10 @@ class MotorController:
                     best_fed_amount = max(best_fed_amount, fed_amount)
                     if progress_cb is not None:
                         try:
-                            progress_cb(max(fed_amount, 0.0), target_weight_grams, time.time() - start_time)
+                            # Anzeige bekommt den PEAK (wie die interne Buchhaltung):
+                            # der Momentanwert flattert durch Motor-Vibration und
+                            # das 3-g-Deadband der Waage zwischen 0 und Istwert
+                            progress_cb(best_fed_amount, target_weight_grams, time.time() - start_time)
                         except Exception:
                             pass
                     if fed_amount >= target_weight_grams:
