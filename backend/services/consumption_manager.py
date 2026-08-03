@@ -188,9 +188,15 @@ class ConsumptionManager:
                 self.history["yearly"].append(yearly_entry)
 
     def get_daily(self, days: int = 30) -> List[Dict]:
-        """Holt tägliche Daten der letzten N Tage"""
+        """Holt tägliche Daten der letzten N KALENDERTAGE.
+
+        Bewusst per Datums-Fenster statt "letzte N Einträge": die Historie
+        ist lückig (nur Tage mit Fütterungen) - sonst zeigt ein
+        "7-Tage-Trend" monatealte Einträge an.
+        """
+        cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
         with self._lock:
-            return list(self.history["daily"][-days:])
+            return [d for d in self.history["daily"] if d["date"] >= cutoff]
 
     def get_today_feedings(self) -> List[Dict]:
         """Holt alle heutigen Einzelfütterungen (inkl. source)"""

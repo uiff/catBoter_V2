@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 import { Header } from '@/components/layout/Header'
+import { PullToRefresh } from '@/components/common/PullToRefresh'
 import { PwaUpdatePrompt } from '@/components/common/PwaUpdatePrompt'
 import { TabBar } from '@/components/layout/TabBar'
 import { ConnectionBanner } from '@/components/layout/ConnectionBanner'
@@ -45,7 +46,7 @@ export default function App() {
       <div className="flex h-full flex-col md:pl-[76px]">
         <Header />
         <ConnectionBanner />
-        <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4 pb-6">
+        <PullToRefresh className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4 pb-6">
           <div className="mx-auto max-w-3xl">
             <Suspense fallback={<PageLoader />}>
               {tab === 'dashboard' && <DashboardPage />}
@@ -54,7 +55,7 @@ export default function App() {
               {tab === 'settings' && <SettingsPage />}
             </Suspense>
           </div>
-        </main>
+        </PullToRefresh>
         <TabBar />
       </div>
       {/* mobileOffset: in der installierten PWA reicht die Seite bis unter die

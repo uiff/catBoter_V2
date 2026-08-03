@@ -22,8 +22,9 @@ def _settings():
     return settings_service.get_settings().get("diet") or {}
 
 
-def budget_today(diet=None):
-    """Aktuelles Tagesbudget in Gramm oder None (Diät aus/unkonfiguriert)."""
+def budget_for(day, diet=None):
+    """Tagesbudget für ein beliebiges Datum (die Rampe ist reine Mathematik -
+    damit lässt sich auch rückwirkend sagen, was an Tag X galt)."""
     d = diet if diet is not None else _settings()
     if not d.get("enabled"):
         return None
@@ -42,9 +43,14 @@ def budget_today(diet=None):
     except ValueError:
         return round(float(target), 1)
 
-    weeks = max(0, (date.today() - started).days // 7)
+    weeks = max(0, (day - started).days // 7)
     budget = float(start) * ((1.0 - pct / 100.0) ** weeks)
     return round(max(float(target), budget), 1)
+
+
+def budget_today(diet=None):
+    """Aktuelles Tagesbudget in Gramm oder None (Diät aus/unkonfiguriert)."""
+    return budget_for(date.today(), diet)
 
 
 def get_status():
@@ -67,6 +73,25 @@ def get_status():
     if budget is not None:
         status["remaining"] = round(max(0.0, budget - consumed), 1)
         status["at_target"] = budget <= (d.get("target_grams") or 0)
+
+        # Wochenstreifen: die letzten 7 Tage gegen ihr JEWEILIGES Budget
+        # (die Rampe kann historisch höher gelegen haben)
+        from datetime import timedelta
+        daily = {e["date"]: e["total"] for e in consumption_manager.get_daily(8)}
+        week = []
+        for offset in range(6, -1, -1):
+            day = date.today() - timedelta(days=offset)
+            day_iso = day.isoformat()
+            total = consumed if offset == 0 else daily.get(day_iso)
+            day_budget = budget_for(day, d)
+            week.append({
+                "date": day_iso,
+                "total": round(total, 1) if total is not None else None,
+                "budget": day_budget,
+                "ok": (total is not None and day_budget is not None
+                       and total <= day_budget) if total is not None else None,
+            })
+        status["week"] = week
     return status
 
 

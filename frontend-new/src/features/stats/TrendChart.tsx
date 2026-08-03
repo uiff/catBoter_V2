@@ -19,6 +19,8 @@ interface TrendChartProps {
   loading: boolean
   /** ISO-Datum (YYYY-MM-DD) des heutigen Tages - dieser Balken wird hervorgehoben. */
   todayDate: string
+  /** Tipp auf einen Tagesbalken öffnet das Tages-Detail */
+  onDayClick?: (entry: DailyEntry) => void
 }
 
 /** "2026-07-29" -> "Di 29." */
@@ -29,7 +31,7 @@ function formatDay(dateStr: string): string {
   return `${weekday} ${date.getDate()}.`
 }
 
-export function TrendChart({ entries, loading, todayDate }: TrendChartProps) {
+export function TrendChart({ entries, loading, todayDate, onDayClick }: TrendChartProps) {
   return (
     <Card>
       <CardHeader title="Trend" icon={<TrendingUp className="h-4 w-4" />} />
@@ -67,7 +69,16 @@ export function TrendChart({ entries, loading, todayDate }: TrendChartProps) {
                   )
                 }}
               />
-              <Bar dataKey="total" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]}>
+              <Bar
+                dataKey="total"
+                fill="hsl(var(--chart-1))"
+                radius={[4, 4, 0, 0]}
+                cursor={onDayClick ? 'pointer' : undefined}
+                onClick={(data) => {
+                  const entry = (data as { payload?: DailyEntry }).payload
+                  if (entry && onDayClick) onDayClick(entry)
+                }}
+              >
                 {entries.map((entry) => (
                   <Cell key={entry.date} fillOpacity={entry.date === todayDate ? 1 : 0.6} />
                 ))}

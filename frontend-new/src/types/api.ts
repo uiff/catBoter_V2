@@ -187,6 +187,8 @@ export interface DietStatus {
   start_date: string | null
   /** true sobald die Rampe das Zielbudget erreicht hat */
   at_target: boolean | null
+  /** Letzte 7 Tage gegen ihr jeweiliges Rampen-Budget (nur bei aktiver Diät) */
+  week?: Array<{ date: string; total: number | null; budget: number | null; ok: boolean | null }>
 }
 
 export interface JitSettings {

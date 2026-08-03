@@ -41,6 +41,16 @@ export default function DashboardPage() {
     refetchInterval: 60_000,
   })
 
+  // Heute pro Katze (Waagen-Erkennung/Labels) für die Hero-Zeile
+  const perCat = useQuery({
+    queryKey: ['eating-data', 1],
+    queryFn: () => api.getEatingData(1),
+    refetchInterval: 60_000,
+  })
+  const perCatEntries = Object.entries(perCat.data?.per_cat_today ?? {}).filter(
+    ([name]) => name !== 'unbekannt',
+  )
+
   // Live: frisst gerade jemand? Nur pollen, solange Futter im Napf liegt.
   // WICHTIG: liveEnabled auch beim Rendern prüfen - sonst friert die Zeile
   // mit dem letzten gecachten Ergebnis ein, sobald der Napf leer ist
@@ -134,14 +144,23 @@ export default function DashboardPage() {
               </div>
 
               {/* Heute */}
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Utensils className="h-4 w-4" />
-                  Heute gefüttert
-                </span>
-                <span className="tnum text-lg font-semibold">
-                  {formatGrams(snapshot.today_total)}
-                </span>
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Utensils className="h-4 w-4" />
+                    Heute gefüttert
+                  </span>
+                  <span className="tnum text-lg font-semibold">
+                    {formatGrams(snapshot.today_total)}
+                  </span>
+                </div>
+                {/* Pro Katze (aus der Waagen-Erkennung/Labels) */}
+                {perCatEntries.length > 0 && (
+                  <p className="tnum flex items-center justify-end gap-1.5 pt-1 text-xs text-muted-foreground">
+                    <Cat className="h-3 w-3 shrink-0" />
+                    {perCatEntries.map(([name, grams]) => `${name} ${grams} g`).join(' · ')}
+                  </p>
+                )}
               </div>
 
               {/* Live: wer frisst gerade? (Waagen-Signatur, ohne Kamera) */}
@@ -197,6 +216,25 @@ export default function DashboardPage() {
                     {formatGrams(diet.data.consumed_today)} von {formatGrams(diet.data.budget_today)}
                     {diet.data.at_target === false && ' · Rampe aktiv'}
                   </p>
+                  {/* Wochenstreifen: 7 Tage gegen ihr jeweiliges Rampen-Budget */}
+                  {diet.data.week && (
+                    <div className="flex items-center gap-1 pt-1.5">
+                      {diet.data.week.map((day) => (
+                        <span
+                          key={day.date}
+                          title={`${day.date}: ${day.total ?? '–'} g / ${day.budget ?? '–'} g`}
+                          className={cn(
+                            'h-1.5 flex-1 rounded-full',
+                            day.ok === null
+                              ? 'bg-surface-2'
+                              : day.ok
+                                ? 'bg-success'
+                                : 'bg-warning',
+                          )}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
