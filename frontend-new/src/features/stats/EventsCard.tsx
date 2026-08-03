@@ -2,14 +2,18 @@ import { useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import type { LucideIcon } from 'lucide-react'
 import {
+  Cat,
   CircleCheck,
   CircleSlash,
   CircleX,
   FileDown,
+  HandPlatter,
+  HeartPulse,
   History,
   Info,
   PauseCircle,
   Power,
+  Target,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/Card'
 import { EmptyState, SegmentedControl, Skeleton } from '@/components/ui/Misc'
@@ -24,6 +28,13 @@ const EVENT_META: Record<string, { icon: LucideIcon; className: string }> = {
   feeding_skipped: { icon: CircleSlash, className: 'text-info' },
   pause: { icon: PauseCircle, className: 'text-warning' },
   backend_start: { icon: Power, className: 'text-muted-foreground' },
+  hand_feed: { icon: HandPlatter, className: 'text-success' },
+  diet: { icon: Target, className: 'text-info' },
+  diet_clamp: { icon: Target, className: 'text-warning' },
+  diet_skipped: { icon: Target, className: 'text-warning' },
+  jit_gate: { icon: Cat, className: 'text-warning' },
+  jit_withheld: { icon: Cat, className: 'text-warning' },
+  health: { icon: HeartPulse, className: 'text-info' },
 }
 
 const DEFAULT_META = { icon: Info, className: 'text-muted-foreground' }

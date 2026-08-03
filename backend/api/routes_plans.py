@@ -42,8 +42,8 @@ def load_random_plans():
 def save_random_plans(plans):
     try:
         FEEDING_PLAN_DIR.mkdir(parents=True, exist_ok=True)
-        with open(RANDOM_PLANS_FILE, 'w') as f:
-            json.dump(plans, f, ensure_ascii=False, indent=2)
+        from core.files import atomic_write_json
+        atomic_write_json(RANDOM_PLANS_FILE, plans)
         return True
     except Exception as e:
         logging.error(f"Fehler beim Speichern der Random-Pläne: {e}")

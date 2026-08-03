@@ -17,6 +17,12 @@ TYPE_LABELS = {
     "pause": "Pause",
     "health": "Gesundheit",
     "tank": "Tank",
+    "hand_feed": "Von Hand gefüttert",
+    "diet": "Diät-Modus",
+    "diet_clamp": "Diät: Dosis gekappt",
+    "diet_skipped": "Diät: übersprungen",
+    "jit_gate": "Pro-Katze: Dosierung pausiert",
+    "jit_withheld": "Pro-Katze: zurückgehalten",
 }
 
 

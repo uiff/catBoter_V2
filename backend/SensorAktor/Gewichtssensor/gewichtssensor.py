@@ -101,8 +101,15 @@ class Gewichtssensor:
             'offset': self.offset
         }
         try:
-            with open(self.calibration_file, 'w') as f:
+            # Atomar (tmp + fsync + replace): eine bei Stromausfall halb
+            # geschriebene Kalibrier-Datei hiesse SensorState.ERROR beim
+            # nächsten Start - und damit keinerlei Fütterungen mehr
+            tmp = str(self.calibration_file) + '.tmp'
+            with open(tmp, 'w') as f:
                 json.dump(data, f)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, str(self.calibration_file))
             logging.info("[SAVE CALIBRATION] Kalibrierungsdaten gespeichert")
         except Exception as e:
             logging.error(f"[SAVE CALIBRATION] Fehler beim Speichern: {e}")

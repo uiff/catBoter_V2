@@ -162,27 +162,42 @@ def load_feeding_plans():
     try:
         with open(FEEDING_PLAN_FILE, 'r') as file:
             fütterungspläne = json.load(file)
-        logging.info("JSON-Daten erfolgreich geladen (FeedingPlan).")
+        logging.debug("JSON-Daten erfolgreich geladen (FeedingPlan).")
         return fütterungspläne
     except FileNotFoundError:
         logging.error("Die Datei mit dem Fütterungsplan wurde nicht gefunden.")
         return []
     except json.JSONDecodeError:
-        logging.error("Fehler beim Lesen der JSON-Datei.")
+        # NIE still schlucken: eine unlesbare Plan-Datei heisst "es wird nie
+        # mehr gefüttert" - der Nutzer muss das sofort erfahren
+        logging.error("Plan-Datei ist KORRUPT - keine Fütterungen möglich!")
+        try:
+            from services import push_service
+            push_service.notify("CatBoter - FEHLER",
+                                "Fütterungsplan-Datei ist beschädigt - es wird "
+                                "NICHT gefüttert! Bitte Plan neu anlegen oder "
+                                "Backup einspielen.", tag="plan_corrupt")
+        except Exception:
+            pass
         return []
     except Exception as e:
         logging.error(f"Fehler beim Laden der Fütterungspläne: {e}")
         return []
 
 def save_feeding_plans(fütterungspläne):
-    """Speichert Fütterungspläne thread-safe"""
+    """Speichert Fütterungspläne thread-safe und ATOMAR (Stromausfall-sicher)"""
     try:
         # Stelle sicher, dass das Verzeichnis existiert
         FEEDING_PLAN_DIR.mkdir(parents=True, exist_ok=True)
-        
-        with open(FEEDING_PLAN_FILE, 'w') as file:
-            json.dump(fütterungspläne, file, ensure_ascii=False, indent=2)
-        logging.info("Fütterungspläne erfolgreich gespeichert.")
+
+        try:
+            from core.files import atomic_write_json
+            atomic_write_json(FEEDING_PLAN_FILE, fütterungspläne)
+        except ImportError:
+            # Standalone-Betrieb ohne Paketkontext
+            with open(FEEDING_PLAN_FILE, 'w') as file:
+                json.dump(fütterungspläne, file, ensure_ascii=False, indent=2)
+        logging.debug("Fütterungspläne erfolgreich gespeichert.")
         return True
     except Exception as e:
         logging.error(f"Fehler beim Speichern der Fütterungspläne: {e}")
@@ -349,7 +364,7 @@ def aktualisiere_fütterungsstatus():
         except ImportError:
             pass
 
-        logging.info("Starte Fütterungsstatus-Update...")
+        logging.debug("Starte Fütterungsstatus-Update...")
 
         # Lade aktuelle Fütterungspläne
         fütterungspläne = load_feeding_plans()
@@ -363,7 +378,7 @@ def aktualisiere_fütterungsstatus():
         current_time = now.time()
         today_date = now.strftime("%Y-%m-%d")
         
-        logging.info(f"Aktueller Tag: {current_day_german}, Aktuelle Zeit: {current_time}")
+        logging.debug(f"Aktueller Tag: {current_day_german}, Aktuelle Zeit: {current_time}")
 
         # Alte In-Memory-Einträge vergangener Tage aufräumen
         _prune_attempts_memory()
@@ -388,7 +403,8 @@ def aktualisiere_fütterungsstatus():
 
         for fütterung, plan_name, slow in due_feedings:
             if process_single_feeding(fütterung, current_time, plan_name,
-                                      slow_minutes=slow, window_checked=True):
+                                      slow_minutes=slow, window_checked=True,
+                                      plans_ref=fütterungspläne):
                 plans_modified = True
 
         # Speichere Updates falls Änderungen aufgetreten sind
@@ -401,7 +417,7 @@ def aktualisiere_fütterungsstatus():
                 logging.error("Fütterungsstatus konnte NICHT gespeichert werden - "
                               "Retry-Schutz läuft über den In-Memory-Backstop weiter")
         else:
-            logging.info("Keine Fütterungen zu verarbeiten.")
+            logging.debug("Keine Fütterungen zu verarbeiten.")
         
         return True
 
@@ -424,7 +440,7 @@ def _is_in_window(fütterung, current_time):
 
 
 def process_single_feeding(fütterung, current_time, plan_name="?", slow_minutes=0,
-                           window_checked=False):
+                           window_checked=False, plans_ref=None):
     """
     Verarbeitet eine einzelne Fütterung
 
@@ -546,6 +562,18 @@ def process_single_feeding(fütterung, current_time, plan_name="?", slow_minutes
         logging.info(f"[process_single_feeding] Starte Fütterung um {fütterung['time']}: "
                      f"Restmenge {remaining}g (Soll {target_weight}g, bereits {already_fed}g), Versuch {attempts + 1}")
 
+        # Versuch VOR dem Motorlauf persistieren: stürzt das Backend während
+        # der Dosierung ab, stünde sonst attempts=0 in der JSON und der
+        # nächste Tick würde die volle Portion ERNEUT dosieren (Audit-Fund)
+        fütterung["attempts"] = attempts + 1
+        fütterung["last_attempt"] = datetime.datetime.now().isoformat()
+        _attempts_memory[mem_key] = {
+            "attempts": attempts + 1,
+            "fed_amount": already_fed,
+        }
+        if plans_ref is not None:
+            save_feeding_plans(plans_ref)
+
         success, message, fed_amount = execute_feeding(
             target_weight=remaining,
             timeout_seconds=300,
@@ -553,9 +581,9 @@ def process_single_feeding(fütterung, current_time, plan_name="?", slow_minutes
         )
         fed_amount = max(0.0, fed_amount)
 
-        # Update Status (fed_amount wird über Versuche hinweg kumuliert)
+        # Update Status (fed_amount wird über Versuche hinweg kumuliert;
+        # attempts wurde bereits VOR dem Motorlauf gesetzt und gespeichert)
         fütterung["status"] = success
-        fütterung["attempts"] = attempts + 1
         fütterung["last_attempt"] = datetime.datetime.now().isoformat()
         fütterung["message"] = message
         fütterung["fed_amount"] = round(already_fed + fed_amount, 2)

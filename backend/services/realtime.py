@@ -11,8 +11,10 @@ import logging
 
 from flask_socketio import SocketIO
 
+# Bewusst OHNE cors_allowed_origins-Wildcard: Standard = nur same-origin
+# (hinter nginx ist Origin == Host). Die Wildcard erlaubte jeder fremden
+# Website im Browser eines LAN-Geräts den Socket-Zugriff (Audit-Fund).
 socketio = SocketIO(
-    cors_allowed_origins="*",
     async_mode="eventlet",
     logger=False,
     engineio_logger=False,

@@ -111,6 +111,12 @@ export function ApFallbackCard() {
               <span className="text-muted-foreground">Hotspot aktiv</span>
               <span className="font-medium">{status.data?.ap_active ? 'Ja' : 'Nein'}</span>
             </div>
+            {status.data?.ap_password && (
+              <div className="flex min-h-6 items-center justify-between gap-3 text-sm">
+                <span className="text-muted-foreground">Hotspot-Passwort</span>
+                <span className="font-mono font-medium">{status.data.ap_password}</span>
+              </div>
+            )}
           </div>
         )}
 

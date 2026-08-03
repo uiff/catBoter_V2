@@ -48,6 +48,25 @@ class WiFiFallbackManager:
         self.max_failed_checks = 3  # Nach 3 Fehlversuchen AP aktivieren
         self.ap_since = 0.0    # wann der AP aktiviert wurde (für die Selbstheilung)
         self.ap_auto = False   # True = AP kam automatisch (nur dann Rückkehr-Versuche)
+        self._last_status = None
+        self._last_status_ts = 0.0
+
+        # Sicherheits-Härtung: das Default-Passwort steht öffentlich im Repo -
+        # beim ersten Start durch ein Zufallspasswort ersetzen (in der App
+        # unter Notfall-Hotspot ablesbar, via Statusdatei)
+        if self.config.get('password') == 'catboter123':
+            import secrets
+            import string
+            alphabet = string.ascii_lowercase + string.digits
+            new_password = ''.join(secrets.choice(alphabet) for _ in range(10))
+            self.config['password'] = new_password
+            try:
+                self._atomic_write(self.config_path, self.config)
+                self._config_mtime = self.config_path.stat().st_mtime
+                logger.warning("Default-Hotspot-Passwort durch Zufallspasswort "
+                               "ersetzt (in der App unter Notfall-Hotspot sichtbar)")
+            except OSError as e:
+                logger.error(f"Zufallspasswort konnte nicht gespeichert werden: {e}")
         self.has_nmcli = self._check_nmcli()
 
     @staticmethod
@@ -115,13 +134,25 @@ class WiFiFallbackManager:
 
     def write_status(self):
         try:
-            self._atomic_write(self.status_path, {
+            status = {
                 "network_connected": self.failed_checks == 0 and not self.ap_active,
                 "ap_active": self.ap_active,
                 "failed_checks": self.failed_checks,
                 "ssid": self._current_ssid(),
-                "ts": time.time(),
-            })
+                # Hotspot-Passwort sichtbar machen: seit es zufällig generiert
+                # wird, muss der Nutzer es in der App ablesen können
+                "ap_password": self.config.get('password'),
+            }
+            # SD-Karte schonen: nur bei Änderung schreiben, plus seltener
+            # Heartbeat - vorher waren es ~2880 fsync-Writes pro Tag
+            now = time.time()
+            if (status == self._last_status
+                    and now - self._last_status_ts < 600):
+                return
+            self._last_status = dict(status)
+            self._last_status_ts = now
+            status["ts"] = now
+            self._atomic_write(self.status_path, status)
         except OSError as e:
             logger.error(f"Statusdatei konnte nicht geschrieben werden: {e}")
 
@@ -348,7 +379,6 @@ ignore_broadcast_ssid=0
 wpa=2
 wpa_passphrase={self.config['password']}
 wpa_key_mgmt=WPA-PSK
-wpa_pairwise=TKIP
 rsn_pairwise=CCMP
 """
 

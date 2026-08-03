@@ -13,10 +13,27 @@ bp = Blueprint("health", __name__)
 
 @bp.route("/health")
 def health():
+    # Ehrlicher Healthcheck: hängt der Fütterungs-Scheduler (tickt alle 60 s),
+    # meldet /health 503 - Docker markiert den Container dann unhealthy und
+    # der Autoheal-Timer auf dem Host startet ihn neu
+    from services import heartbeat
+    scheduler_age = heartbeat.age("scheduler")
+    if scheduler_age is not None and scheduler_age > 180:
+        # Läuft gerade eine Fütterung (Anti-Schling/JIT bis 15 min), hält sie
+        # den Scheduler LEGITIM auf - erst ab 20 min gilt auch das als Hänger
+        from core.locks import feeding_lock
+        legit_feed = feeding_lock.locked() and scheduler_age <= 1200
+        if not legit_feed:
+            return jsonify({
+                "status": "degraded",
+                "detail": f"Fütterungs-Scheduler seit {scheduler_age:.0f}s ohne Herzschlag",
+                "timestamp": datetime.datetime.now().isoformat(),
+                "version": "3.6",
+            }), 503
     return jsonify({
         "status": "online",
         "timestamp": datetime.datetime.now().isoformat(),
-        "version": "3.5",
+        "version": "3.6",
     })
 
 

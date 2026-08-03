@@ -8,7 +8,6 @@ import sys
 from pathlib import Path
 
 from flask import Flask, request
-from flask_cors import CORS
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -38,8 +37,10 @@ def _sensor_snapshot():
 
 
 def create_app():
+    # Bewusst KEIN CORS: das Frontend läuft same-origin hinter nginx.
+    # Eine CORS-Wildcard hiesse: jede im LAN geöffnete Website dürfte per
+    # Drive-by-JavaScript die komplette Futter-API bedienen (Audit-Fund).
     app = Flask(__name__)
-    CORS(app)
     register_blueprints(app)
     socketio.init_app(app)
     return app
@@ -193,10 +194,13 @@ def background_weight_streaming():
 
 def feeding_status_scheduler():
     """Prüft jede Minute, ob eine geplante Fütterung fällig ist."""
+    from services import heartbeat
     logging.info("Fütterungs-Scheduler gestartet (60 s Intervall)")
+    heartbeat.beat("scheduler")
     while True:
         try:
             feedingControl.aktualisiere_fütterungsstatus()
+            heartbeat.beat("scheduler")
         except Exception as e:
             logging.error(f"Feeding Scheduler Fehler: {e}")
         eventlet.sleep(60)
@@ -244,7 +248,10 @@ if __name__ == '__main__':
 
         socketio.run(
             app,
-            host='0.0.0.0',
+            # Nur localhost: von aussen führt der EINZIGE Weg über nginx
+            # (Port 80) - der rohe Flask-Port 5000 ist aus dem LAN nicht
+            # mehr direkt erreichbar (Audit-Fund)
+            host='127.0.0.1',
             port=5000,
             debug=False,
             use_reloader=False,

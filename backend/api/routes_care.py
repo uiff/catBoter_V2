@@ -56,8 +56,34 @@ def delete_reminder(reminder_id):
 def vet_report():
     """Druckfertiger Gesundheitsbericht (HTML) für den Tierarztbesuch."""
     try:
-        from services import event_log, health_monitor
+        from services import eating_tracker, event_log, health_monitor
         from services.consumption_manager import consumption_manager
+
+        # Pro-Katze-Auswertung aus den Fress-Episoden (Label vor Auto-Label) -
+        # "welche Katze frisst weniger?" ist beim Tierarzt die Kernfrage
+        episodes = eating_tracker.list_episodes(30)
+        by_cat = {}
+        unknown_g = 0.0
+        total_g = 0.0
+        for ep in episodes:
+            grams = ep.get("consumed", 0) or 0
+            total_g += grams
+            cat = ep.get("label") or ep.get("auto_label")
+            if not cat:
+                unknown_g += grams
+                continue
+            bucket = by_cat.setdefault(cat, {"g": 0.0, "meals": 0, "dur": 0.0, "rate": 0.0})
+            bucket["g"] += grams
+            bucket["meals"] += 1
+            bucket["dur"] += ep.get("duration_s", 0) or 0
+            bucket["rate"] += ep.get("rate", 0) or 0
+        cat_rows = "".join(
+            f"<tr><td>{name}</td><td class='v'>{b['g']:.0f} g</td>"
+            f"<td class='v'>{b['meals']}</td>"
+            f"<td class='v'>{b['dur'] / max(1, b['meals']) / 60:.1f} min</td>"
+            f"<td class='v'>{b['rate'] / max(1, b['meals']):.1f} g/min</td></tr>"
+            for name, b in sorted(by_cat.items()))
+        unknown_share = (unknown_g / total_g * 100) if total_g > 0 else 0
 
         daily = consumption_manager.get_daily(30)
         stats = consumption_manager.get_stats()
@@ -116,6 +142,12 @@ Zeitraum: letzte 30 Tage · Hinweis: Werte umfassen ALLE Katzen des Haushalts ge
 {row('Ø Fresszeit', f"{health.get('avg_minutes')} min" if health.get('avg_minutes') else '–')}
 {row('Futter-Alter im Tank', f"{fresh.get('food_age_days')} Tage" if fresh.get('food_age_days') is not None else '–')}
 </table>
+
+<h2>Pro Katze (30 Tage, Waagen-Erkennung)</h2>
+<table><tr><th>Katze</th><th class='v'>Gesamt</th><th class='v'>Mahlzeiten</th><th class='v'>Ø Dauer</th><th class='v'>Ø Tempo</th></tr>
+{cat_rows or "<tr><td colspan='5'>Noch keine zugeordneten Fress-Episoden</td></tr>"}</table>
+<p class="muted">Nicht zuordenbare Fressmenge: {unknown_share:.0f} % - die Erkennung arbeitet
+über die Fress-Signatur der Waage und ist ein Richtwert.</p>
 
 <h2>Tagesmengen</h2>
 <table><tr><th>Datum</th><th class='v'>Menge</th><th class='v'>Fütterungen</th></tr>

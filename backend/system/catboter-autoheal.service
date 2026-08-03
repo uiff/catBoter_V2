@@ -1,0 +1,6 @@
+[Unit]
+Description=CatBoter Autoheal - unhealthy Backend-Container neu starten
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c 'state=$(docker inspect --format "{{.State.Health.Status}}" catboter_backend 2>/dev/null); if [ "$state" = "unhealthy" ]; then logger -t catboter-autoheal "Backend unhealthy - Neustart"; docker restart catboter_backend; fi'

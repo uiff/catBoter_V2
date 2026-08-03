@@ -113,6 +113,8 @@ export interface FallbackStatus {
   ap_active?: boolean
   failed_checks?: number
   ssid?: string | null
+  /** Passwort des Notfall-Hotspots (wird beim ersten Start zufällig erzeugt) */
+  ap_password?: string | null
   message?: string
 }
 

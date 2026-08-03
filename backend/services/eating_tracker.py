@@ -13,6 +13,7 @@ ML-Bibliothek) neue Episoden mit Konfidenz zu. Unsichere bleiben unbekannt.
 """
 import json
 import logging
+import math
 import os
 import threading
 import time
@@ -46,10 +47,24 @@ HAND_REFILL_SAMPLES = 3
 # werden nur in die Baseline übernommen, nie als Hand-Fütterung gebucht
 POST_DOSING_QUIET_S = 60
 
-FEATURES = ("rate", "mean_bite", "duration_s", "pauses", "max_spike")
+FEATURES = ("rate", "mean_bite", "duration_s", "pauses", "max_spike",
+            "hour_sin", "hour_cos")
 # Für die LIVE-Vermutung während des Fressens: nur Merkmale, die sich schon
-# nach wenigen Bissen stabilisieren (Dauer/Pausen kennt man erst am Ende)
-LIVE_FEATURES = ("rate", "mean_bite")
+# nach wenigen Bissen stabilisieren (Dauer/Pausen kennt man erst am Ende).
+# Die Tageszeit steht ab Sekunde 1 fest und ist rauschfrei - Katzen haben
+# oft getrennte Fresszeiten.
+LIVE_FEATURES = ("rate", "mean_bite", "hour_sin", "hour_cos")
+
+
+def _feat(episode, name):
+    """Merkmalswert einer Episode. Die Stunde wird ZYKLISCH kodiert
+    (sin/cos: 23 Uhr und 1 Uhr liegen nah beieinander) - gespeicherte
+    Episoden tragen 'hour' seit jeher, bleiben also kompatibel."""
+    if name == "hour_sin":
+        return math.sin(2 * math.pi * (episode.get("hour") or 0) / 24)
+    if name == "hour_cos":
+        return math.cos(2 * math.pi * (episode.get("hour") or 0) / 24)
+    return episode.get(name, 0) or 0
 LIVE_MIN_DURATION_S = 15
 LIVE_MIN_CONSUMED_G = 2.0
 
@@ -196,6 +211,14 @@ def sample(weight, feeding_active: bool):
             s["increase_streak"] = 0
             return
         if decrease >= DECREASE_G:
+            if weight <= 0.5:
+                # 0-Sprung des Sensor-Deadbands (letzter Rest -> Anzeige 0):
+                # das ist KEIN Biss - Episode am echten Ende schliessen, ohne
+                # rate/mean_bite/pauses mit dem Artefakt zu verfälschen
+                _finish_episode(weight, now)
+                s["baseline"] = weight
+                s["increase_streak"] = 0
+                return
             gap = now - s["last_decrease_ts"]
             if gap >= PAUSE_GAP_S:
                 s["pauses"] += 1
@@ -331,13 +354,13 @@ def _centroids(episodes, features=FEATURES):
     if len(by_cat) < 2 or any(len(v) < MIN_LABELS_PER_CAT for v in by_cat.values()):
         return None, None, None
 
-    values = {f: [e.get(f, 0) or 0 for e in labeled] for f in features}
+    values = {f: [_feat(e, f) for e in labeled] for f in features}
     means = {f: sum(v) / len(v) for f, v in values.items()}
     stds = {f: (sum((x - means[f]) ** 2 for x in v) / len(v)) ** 0.5 or 1.0
             for f, v in values.items()}
 
     def normalize(episode):
-        return [((episode.get(f, 0) or 0) - means[f]) / stds[f] for f in features]
+        return [(_feat(episode, f) - means[f]) / stds[f] for f in features]
 
     centroids = {cat: [sum(vec[i] for vec in map(normalize, eps)) / len(eps)
                        for i in range(len(features))]
@@ -350,7 +373,7 @@ def _nearest(sample, episodes, features):
     centroids, means, stds = _centroids(episodes, features)
     if centroids is None:
         return None, None
-    vector = [((sample.get(f, 0) or 0) - means[f]) / stds[f] for f in features]
+    vector = [(_feat(sample, f) - means[f]) / stds[f] for f in features]
     distances = {cat: sum((a - b) ** 2 for a, b in zip(vector, centroid)) ** 0.5
                  for cat, centroid in centroids.items()}
     ranked = sorted(distances.items(), key=lambda kv: kv[1])
@@ -386,6 +409,7 @@ def current_activity():
         sample = {
             "rate": round(consumed / (duration / 60.0), 2),
             "mean_bite": round(consumed / max(1, s["bites"]), 2),
+            "hour": datetime.now().hour,
         }
         episodes = _load()
 
